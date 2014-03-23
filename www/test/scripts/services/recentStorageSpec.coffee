@@ -2,11 +2,12 @@ if window.__karma__?
     beforeEach module 'app'
 
     describe 'recent storage service', ->
-        recentStorage = $q = $window = null
+        recentStorage = $q = $window = $rootScope = null
 
         injected = ($injector) ->
             $q = $injector.get('$q')
             $window = $injector.get('$window')
+            $rootScope = $injector.get('$rootScope')
             recentStorage = $injector.get('recentStorage')
 
         beforeEach (inject(injected))
@@ -15,21 +16,28 @@ if window.__karma__?
             testBuild1 = {link: '/test1', caption: 'test1'}
             testBuild2 = {link: '/test2', caption: 'test2'}
             testBuild3 = {link: '/test3', caption: 'test3'}
-            dump testBuild1
-            recentStorage.addBuild(testBuild1)
-            recentStorage.addBuild(testBuild3)
-            recentStorage.getBuilds().then (e) ->
-                dump e
-                resolved = e
-                expect(resolved).not.toBeNull()
-                expect(resolved).toContain(testBuild1)
-                expect(resolved).toContain(testBuild3)
-                expect(resolved).not.toContain(testBuild2)
-                done()
-            , ->
-                dump "failed", testBuild1
-                done()
 
+            # first make sure everything is clear
+            recentStorage.clearAll().then (e) ->
+                $q.all([
+                    recentStorage.addBuild(testBuild1),
+                    recentStorage.addBuild(testBuild3)
+                ])
+                .then ->
+                    recentStorage.getBuilds().then (e) ->
+                        resolved = e
+                        console.log e
+                        expect(resolved).not.toBeNull()
+                        expect(resolved).toContain(testBuild1)
+                        expect(resolved).toContain(testBuild3)
+                        expect(resolved).not.toContain(testBuild2)
+                        done()
+            , ->
+                # make sure if that failed, its because the browser did not support it
+                expect(window.indexedDB).toBeUndefined()
+                done()
+            $rootScope.$digest()
+###
         it 'should store recent builders', (done) ->
             testBuilder1 = {link: '/test1', caption: 'test1'}
             testBuilder2 = {link: '/test2', caption: 'test2'}
@@ -46,6 +54,7 @@ if window.__karma__?
                 expect(resolved).not.toContain(testBuilder3)
             , ->
                 done()
+            $rootScope.$digest()
 
         it 'should be empty after clear', (done) ->
             recentStorage.clearAll().then (e) ->
@@ -55,3 +64,7 @@ if window.__karma__?
                 done()
             , ->
                 done()
+            $rootScope.$digest()
+
+###
+

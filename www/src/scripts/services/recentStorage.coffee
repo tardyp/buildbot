@@ -10,17 +10,14 @@ angular.module('app').factory 'recentStorage',
         setUp = false
         self =
             open : ->
+                if not $window.indexedDB?
+                    return $q.reject('IndexedDB is not supported')
+
                 if setUp
                     return $q.when(true)
 
                 deferred = $q.defer()
-
-                if 'indexedDB' of $window
-                    indexedDB = $window.indexedDB
-                else if !setUp
-                    dump "indexdb failed"
-                    deferred.reject('IndexedDB is not supported')
-                    return deferred.promise
+                indexedDB = $window.indexedDB
 
                 openRequest = indexedDB.open('Recent', 1)
                 openRequest.onupgradeneeded = (e) ->
@@ -45,22 +42,22 @@ angular.module('app').factory 'recentStorage',
 
         service =
             addRecent: (link, recent) ->
-                self.open().then ->
+                return self.open().then ->
                     transaction = db.transaction([link], 'readwrite')
                     store = transaction.objectStore(link)
                     store.add(recent)
 
 
             addBuild: (build) ->
-                service.addRecent('recent_builds', build)
+                return service.addRecent('recent_builds', build)
 
             addBuilder: (builder) ->
-                service.addRecent('recent_builders', builder)
+                return service.addRecent('recent_builders', builder)
 
             getRecentLinks: (link) ->
-                deferred = $q.defer()
+                return self.open().then ->
+                    deferred = $q.defer()
 
-                self.open().then ->
                     transaction = db.transaction([link], 'readwrite')
                     store = transaction.objectStore(link)
                     cursorRequest = store.openCursor()
@@ -79,34 +76,41 @@ angular.module('app').factory 'recentStorage',
                     transaction.oncomplete = ->
                         $rootScope.$apply ->
                             deferred.resolve(recents)
-                , (e) ->
-                    $rootScope.$apply ->
-                        deferred.reject(e)
 
-                return deferred.promise
+                    return deferred.promise
 
             getBuilds: ->
-                service.getRecentLinks('recent_builds')
+                return service.getRecentLinks('recent_builds')
 
             getBuilders: ->
-                service.getRecentLinks('recent_builders')
+                return service.getRecentLinks('recent_builders')
 
             getAll: ->
-                $q.all {
+                return $q.all {
                     recent_builds: service.getBuilds(),
                     recent_builders: service.getBuilders()
                 }
 
             clear: (link) ->
-                self.open().then ->
+                return self.open().then ->
+                    deferred = $q.defer()
                     transaction = db.transaction([link], 'readwrite')
                     store = transaction.objectStore(link)
-                    store.clear()
-                    return service.getAll()
+                    req = store.clear()
+                    req.onerror = (e) ->
+                        $rootScope.$apply ->
+                            deferred.reject('Database error:' + e.toString())
+
+                    req.onsuccess = (e) ->
+                        $rootScope.$apply ->
+                            deferred.resolve(null)
+                    return deferred.promise
 
             clearAll: ->
-                service.clear('recent_builds')
-                service.clear('recent_builders')
+                return $q.all [
+                    service.clear('recent_builds')
+                    service.clear('recent_builders')
+                ]
 
         return service
     ]
