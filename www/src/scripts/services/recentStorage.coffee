@@ -9,7 +9,7 @@ angular.module('app').factory 'recentStorage',
         db = null
         setUp = false
         self =
-            open : ->
+            open: ->
                 if not $window.indexedDB?
                     return $q.reject('IndexedDB is not supported')
 
@@ -40,19 +40,11 @@ angular.module('app').factory 'recentStorage',
 
                 return deferred.promise
 
-        service =
             addRecent: (link, recent) ->
                 return self.open().then ->
                     transaction = db.transaction([link], 'readwrite')
                     store = transaction.objectStore(link)
                     store.add(recent)
-
-
-            addBuild: (build) ->
-                return service.addRecent('recent_builds', build)
-
-            addBuilder: (builder) ->
-                return service.addRecent('recent_builders', builder)
 
             getRecentLinks: (link) ->
                 return self.open().then ->
@@ -79,18 +71,6 @@ angular.module('app').factory 'recentStorage',
 
                     return deferred.promise
 
-            getBuilds: ->
-                return service.getRecentLinks('recent_builds')
-
-            getBuilders: ->
-                return service.getRecentLinks('recent_builders')
-
-            getAll: ->
-                return $q.all {
-                    recent_builds: service.getBuilds(),
-                    recent_builders: service.getBuilders()
-                }
-
             clear: (link) ->
                 return self.open().then ->
                     deferred = $q.defer()
@@ -106,10 +86,29 @@ angular.module('app').factory 'recentStorage',
                             deferred.resolve(null)
                     return deferred.promise
 
+        service =
+            addBuild: (build) ->
+                return self.addRecent('recent_builds', build)
+
+            addBuilder: (builder) ->
+                return self.addRecent('recent_builders', builder)
+
+            getBuilds: ->
+                return self.getRecentLinks('recent_builds')
+
+            getBuilders: ->
+                return self.getRecentLinks('recent_builders')
+
+            getAll: ->
+                return $q.all {
+                    recent_builds: service.getBuilds(),
+                    recent_builders: service.getBuilders()
+                }
+
             clearAll: ->
                 return $q.all [
-                    service.clear('recent_builds')
-                    service.clear('recent_builders')
+                    self.clear('recent_builds')
+                    self.clear('recent_builders')
                 ]
 
         return service
