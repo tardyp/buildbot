@@ -9,7 +9,7 @@ angular.module('app').factory 'recentStorage',
         db = null
         setUp = false
         self =
-            open : ->
+            open: ->
                 if not $window.indexedDB?
                     return $q.reject('IndexedDB is not supported')
 
@@ -46,7 +46,6 @@ angular.module('app').factory 'recentStorage',
                     transaction = db.transaction([link], 'readwrite')
                     store = transaction.objectStore(link)
                     store.add(recent)
-
 
             addBuild: (build) ->
                 return service.addRecent('recent_builds', build)
