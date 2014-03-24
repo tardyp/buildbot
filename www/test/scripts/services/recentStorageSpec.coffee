@@ -64,21 +64,20 @@ if window.__karma__?
             testBuilder1 = {link: '/test1', caption: 'test1'}
             testBuilder2 = {link: '/test2', caption: 'test2'}
 
-            recentStorage.clearAll().then (e) ->
-                $q.all([
-                    recentStorage.addBuild(testBuild1),
-                    recentStorage.addBuild(testBuild2),
-                    recentStorage.addBuilder(testBuilder1),
-                    recentStorage.addBuilder(testBuilder2)
-                ])
-                .then ->
-                    recentStorage.clearAll().then (e) ->
-                        recentStorage.getAll().then (e) ->
-                            resolved = e
-                            expect(resolved).toBeDefined()
-                            expect(resolved.recent_builds.length).toBe(0)
-                            expect(resolved.recent_builders.length).toBe(0)
-                            done()
+            $q.all([
+                recentStorage.addBuild(testBuild1),
+                recentStorage.addBuild(testBuild2),
+                recentStorage.addBuilder(testBuilder1),
+                recentStorage.addBuilder(testBuilder2)
+            ])
+            .then ->
+                recentStorage.clearAll().then (e) ->
+                    recentStorage.getAll().then (e) ->
+                        resolved = e
+                        expect(resolved).toBeDefined()
+                        expect(resolved.recent_builds.length).toBe(0)
+                        expect(resolved.recent_builders.length).toBe(0)
+                        done()
             , ->
                 expect($window.indexedDB).toBeUndefined()
                 done()
