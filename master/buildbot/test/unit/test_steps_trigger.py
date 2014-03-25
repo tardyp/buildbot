@@ -19,8 +19,8 @@ from buildbot import config
 from buildbot import interfaces
 from buildbot.process import properties
 from buildbot.status import master
-from buildbot.status.results import EXCEPTION
 from buildbot.status.results import CANCELLED
+from buildbot.status.results import EXCEPTION
 from buildbot.status.results import FAILURE
 from buildbot.status.results import SUCCESS
 from buildbot.steps import trigger
@@ -28,11 +28,11 @@ from buildbot.test.fake import fakedb
 from buildbot.test.util import compat
 from buildbot.test.util import steps
 from buildbot.test.util.interfaces import InterfaceTests
+from mock import Mock
 from twisted.internet import defer
 from twisted.internet import reactor
 from twisted.python import failure
 from twisted.trial import unittest
-from mock import Mock
 
 
 class FakeTriggerable(object):
@@ -99,6 +99,7 @@ class TestTrigger(steps.BuildStepMixin, unittest.TestCase):
 
         # set up a buildmaster that knows about two fake schedulers, a and b
         m = self.master
+        m.db.checkForeignKeys = True
         self.build.builder.botmaster = m.botmaster
         m.status = master.Status(m)
         m.config.buildbotURL = "baseurl/"
@@ -122,6 +123,9 @@ class TestTrigger(steps.BuildStepMixin, unittest.TestCase):
 
         m.db.insertTestData([
             fakedb.Master(id=9),
+            fakedb.Buildset(id=2022),
+            fakedb.Buildset(id=2011),
+            fakedb.Buildslave(id=13, name="some:slave"),
             make_fake_br(11, "A"),
             make_fake_br(22, "B"),
             make_fake_build(11),
@@ -188,18 +192,18 @@ class TestTrigger(steps.BuildStepMixin, unittest.TestCase):
 
     def expectTriggeredLinks(self, *args):
         if 'a_br' in args:
-            self.exp_added_urls.append((('a #11', 'baseurl/#buildrequest/11'), {}))
+            self.exp_added_urls.append((('a #11', 'baseurl/#buildrequests/11'), {}))
         if 'b_br' in args:
-            self.exp_added_urls.append((('b #22', 'baseurl/#buildrequest/22'), {}))
+            self.exp_added_urls.append((('b #22', 'baseurl/#buildrequests/22'), {}))
         if 'a' in args:
             self.exp_added_urls.append((('success: A #4011',
-                                         'baseurl/#builders/A/builds/4011'), {}))
+                                         'baseurl/#builders/1/builds/4011'), {}))
         if 'b' in args:
             self.exp_added_urls.append((('success: B #4022',
-                                         'baseurl/#builders/B/builds/4022'), {}))
+                                         'baseurl/#builders/2/builds/4022'), {}))
         if 'afailed' in args:
             self.exp_added_urls.append((('failure: A #4011',
-                                         'baseurl/#builders/A/builds/4011'), {}))
+                                         'baseurl/#builders/1/builds/4011'), {}))
 
     # tests
     def test_no_schedulerNames(self):

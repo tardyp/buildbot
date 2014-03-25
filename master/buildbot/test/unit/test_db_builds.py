@@ -36,11 +36,13 @@ class Tests(interfaces.InterfaceTests):
 
     backgroundData = [
         fakedb.Buildset(id=20),
+        fakedb.BuildRequest(id=40, buildsetid=20, buildername='b1'),
         fakedb.BuildRequest(id=41, buildsetid=20, buildername='b1'),
         fakedb.BuildRequest(id=42, buildsetid=20, buildername='b2'),
         fakedb.Builder(id=77, name="b1"),
         fakedb.Builder(id=88, name="b2"),
         fakedb.Master(id=88),
+        fakedb.Master(id=89, name="bar"),
         fakedb.Buildslave(id=13, name='sl'),
     ]
     threeBuilds = [
@@ -105,6 +107,11 @@ class Tests(interfaces.InterfaceTests):
     def test_signature_finishBuild(self):
         @self.assertArgSpecMatches(self.db.builds.finishBuild)
         def finishBuild(self, buildid, results):
+            pass
+
+    def test_signature_finishBuildsFromMaster(self):
+        @self.assertArgSpecMatches(self.db.builds.finishBuildsFromMaster)
+        def finishBuildsFromMaster(self, masterid, results):
             pass
 
     # method tests
@@ -223,6 +230,30 @@ class Tests(interfaces.InterfaceTests):
                                      state_strings=[u'test'],
                                      results=7))
 
+    @defer.inlineCallbacks
+    def test_finishBuildsFromMaster(self):
+        clock = task.Clock()
+        clock.advance(TIME4)
+        yield self.insertTestData(self.backgroundData + self.threeBuilds + [
+            fakedb.Build(
+                id=54, buildrequestid=40, number=50, masterid=89,
+                builderid=77, buildslaveid=13, state_strings_json='["test"]',
+                started_at=TIME1)
+        ])
+        yield self.db.builds.finishBuildsFromMaster(masterid=88, results=7, _reactor=clock)
+        bdict = yield self.db.builds.getBuild(50)
+        validation.verifyDbDict(self, 'builddict', bdict)
+        self.assertEqual(bdict, dict(id=50, number=5, buildrequestid=42,
+                                     masterid=88, builderid=77, buildslaveid=13,
+                                     started_at=epoch2datetime(TIME1),
+                                     complete_at=epoch2datetime(TIME4),
+                                     state_strings=[u'test'],
+                                     results=7))
+        for _id, results in [(50, 7), (51, 7), (52, 5), (54, None)]:
+            bdict = yield self.db.builds.getBuild(_id)
+            validation.verifyDbDict(self, 'builddict', bdict)
+            self.assertEqual(bdict['results'], results)
+
 
 class RealTests(Tests):
 
@@ -262,6 +293,7 @@ class TestFakeDB(unittest.TestCase, Tests):
     def setUp(self):
         self.master = fakemaster.make_master()
         self.db = fakedb.FakeDBConnector(self.master, self)
+        self.db.checkForeignKeys = True
         self.insertTestData = self.db.insertTestData
 
 
