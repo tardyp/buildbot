@@ -66,19 +66,22 @@ class AuthBase(www.WwwTestMixin, unittest.TestCase):
     def test_maybeAutoLogin(self):
         self.assertEqual((yield self.auth.maybeAutoLogin(self.req)), None)
 
-    def test_getLoginResource(self):
-        self.assertRaises(Error, self.auth.getLoginResource)
+        def updateUserInfo(request):
+            session = request.getSession()
+            session.user_infos['email'] = session.user_infos[
+                'username'] + "@org"
+        _auth.updateUserInfo = mock.Mock(side_effect=updateUserInfo)
+        master = self.make_master(url='h:/a/b/', auth=_auth)
+        rsrc = auth.PreAuthenticatedLoginResource(master, _auth, "him")
+        rsrc.reconfigResource(master.config)
 
-    def test_getLogoutResource(self):
-        self.assertRaises(Error, self.auth.getLogoutResource)
-
-    @defer.inlineCallbacks
-    def test_updateUserInfo(self):
-        self.auth.userInfoProvider.getUserInfo = lambda un: {'info': un}
-        self.req.session.user_info = {'username': 'elvira'}
-        yield self.auth.updateUserInfo(self.req)
-        self.assertEqual(self.req.session.user_info,
-                         {'info': 'elvira', 'username': 'elvira'})
+        res = yield self.render_resource(rsrc, '/')
+        self.assertEqual(res, "")
+        _auth.maybeAutoLogin.assert_not_called()
+        _auth.authenticateViaLogin.assert_not_called()
+        _auth.updateUserInfo.assert_called()
+        self.assertEqual(
+            master.session.user_infos, {'email': 'him@org', 'username': 'him'})
 
     def getConfigDict(self):
         self.assertEqual(auth.getConfigDict(),

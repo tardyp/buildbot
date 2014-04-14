@@ -33,6 +33,9 @@ from twisted.internet import defer
 from twisted.python import failure
 from twisted.python import log
 
+from twisted.python.components import registerAdapter
+from zope.interface import implements
+
 
 class ConfigErrors(Exception):
 
