@@ -1,10 +1,10 @@
-ul.nav.navbar-nav.navbar-right(ng-show="config.auth.name != 'noauth'")
+ul.nav.navbar-nav.navbar-right(ng-show="config.auth.name != 'NoAuth'")
     li.dropdown(ng-show="anonymous", ng-class="loginCollapsed ? '':'open'")
         a(ng-click="loginCollapsed = !loginCollapsed")
             | Anonymous
             b.caret
         ul.dropdown-menu(style="padding:17px;")
-            form(role='login', ng-hide="config.auth.oauth2"))
+            form(role='login', ng-hide="config.auth.oauth2")
                 | Login:
                 .form-group
                     input(type='text', placeholder='username', ng-model="username")

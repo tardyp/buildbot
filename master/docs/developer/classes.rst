@@ -26,7 +26,5 @@ The sections contained here document classes that can be used or subclassed.
     cls-log
     cls-logobserver
     cls-auth
-
-.. todo::
-
-    cls-logobserver
+    cls-avatar
+    cls-www

@@ -19,6 +19,7 @@ from buildbot import config
 from buildbot.util import service
 from buildbot.www import auth
 from buildbot.www import avatar
+from buildbot.www import config as wwwconfig
 from buildbot.www import rest
 from buildbot.www import sse
 from buildbot.www import ws
@@ -60,6 +61,10 @@ class WWWService(config.ReconfigurableServiceMixin, service.AsyncMultiService):
 
         if 'base' not in self.apps:
             raise RuntimeError("could not find buildbot-www; is it installed?")
+
+    @property
+    def auth(self):
+        return self.master.config.www['auth']
 
     @defer.inlineCallbacks
     def reconfigService(self, new_config):
@@ -133,13 +138,10 @@ class WWWService(config.ReconfigurableServiceMixin, service.AsyncMultiService):
             root.putChild(key, self.apps[key].resource)
 
         # /config.js
-        root.putChild('config.js', auth.SessionConfigResource(self.master))
+        root.putChild('config.js', wwwconfig.SessionConfigResource(self.master))
 
-        # /login
-        root.putChild('login', new_config.www['auth'].getLoginResource(self.master))
-
-        # /logout
-        root.putChild('logout', auth.LogoutResource(self.master))
+        # /auth
+        root.putChild('auth', auth.AuthRootResource(self.master))
 
         # /avatar
         root.putChild('avatar', avatar.AvatarResource(self.master))

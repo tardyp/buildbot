@@ -24,6 +24,7 @@ from buildbot import interfaces
 from buildbot import locks
 from buildbot import util
 from buildbot.revlinks import default_revlink_matcher
+from buildbot.util import config as util_config
 from buildbot.util import safeTranslate
 from buildbot.www import auth
 from buildbot.www import avatar
@@ -687,7 +688,8 @@ class MasterConfig(util.ComparableMixin):
             error("slaves are configured, but c['protocols'] not")
 
 
-class BuilderConfig(util.ConfiguredMixin):
+class BuilderConfig(util_config.ConfiguredMixin):
+
     def __init__(self, name=None, slavename=None, slavenames=None,
                  builddir=None, slavebuilddir=None, factory=None, category=None,
                  nextSlave=None, nextBuild=None, locks=None, env=None,
@@ -815,52 +817,3 @@ class ReconfigurableServiceMixin:
 
         for svc in reconfigurable_services:
             yield svc.reconfigService(new_config)
-
-
-class _DefaultConfigured(object):
-    implements(interfaces.IConfigured)
-
-    def __init__(self, value):
-        self.value = value
-
-    def getConfigDict(self):
-        return self.value
-
-registerAdapter(_DefaultConfigured, object, interfaces.IConfigured)
-
-
-class _ListConfigured(object):
-    implements(interfaces.IConfigured)
-
-    def __init__(self, value):
-        self.value = value
-
-    def getConfigDict(self):
-        return [interfaces.IConfigured(e).getConfigDict() for e in self.value]
-
-registerAdapter(_ListConfigured, list, interfaces.IConfigured)
-
-
-class _DictConfigured(object):
-    implements(interfaces.IConfigured)
-
-    def __init__(self, value):
-        self.value = value
-
-    def getConfigDict(self):
-        return dict([(k, interfaces.IConfigured(v).getConfigDict())
-                     for k, v in self.value.iteritems()])
-
-registerAdapter(_DictConfigured, dict, interfaces.IConfigured)
-
-
-class _SREPatternConfigured(object):
-    implements(interfaces.IConfigured)
-
-    def __init__(self, value):
-        self.value = value
-
-    def getConfigDict(self):
-        return dict(name="re", pattern=self.value.pattern)
-
-registerAdapter(_SREPatternConfigured, type(re.compile("")), interfaces.IConfigured)

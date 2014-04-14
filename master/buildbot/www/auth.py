@@ -17,10 +17,8 @@ import re
 
 from zope.interface import implements
 
-from buildbot.util import json
-from buildbot.interfaces import IConfigured
+from buildbot.util import config
 from buildbot.www import resource
-from buildbot import util
 
 from twisted.cred.checkers import FilePasswordDB
 from twisted.cred.checkers import InMemoryUsernamePasswordDatabaseDontUse
@@ -34,8 +32,18 @@ from twisted.web.guard import HTTPAuthSessionWrapper
 from twisted.web.resource import IResource
 
 
-class AuthBase(util.ConfiguredMixin):
-    name = "auth"
+class AuthRootResource(resource.Resource):
+
+    def getChild(self, path, request):
+        # return dynamically generated resources
+        if path == 'login':
+            return self.master.www.auth.getLoginResource()
+        elif path == 'logout':
+            return self.master.www.auth.getLogoutResource()
+        return resource.Resource.getChild(self, path, request)
+
+
+class AuthBase(config.ConfiguredMixin):
 
     def __init__(self, userInfoProvider=None):
         if userInfoProvider is None:
@@ -46,35 +54,47 @@ class AuthBase(util.ConfiguredMixin):
         self.master = master
 
     def maybeAutoLogin(self, request):
-        return defer.succeed(False)
+        return defer.succeed(None)
 
-    def authenticateViaLogin(self, request):
+    def getLoginResource(self):
         raise Error(501, "not implemented")
 
-    def getLoginResource(self, master):
-        return LoginResource(master)
+    def getLogoutResource(self):
+        raise Error(501, "not implemented")
 
     @defer.inlineCallbacks
     def updateUserInfo(self, request):
         session = request.getSession()
         if self.userInfoProvider is not None:
-            infos = yield self.userInfoProvider.getUserInfo(session.user_infos['username'])
-            session.user_infos.update(infos)
+            infos = yield self.userInfoProvider.getUserInfo(session.user_info['username'])
+            session.user_info.update(infos)
+
+    def getConfigDict(self):
+        return {'name': type(self).__name__}
 
 
-class UserInfoProviderBase(util.ConfiguredMixin):
+class UserInfoProviderBase(config.ConfiguredMixin):
     name = "noinfo"
 
     def getUserInfo(self, username):
         return defer.succeed({'email': username})
 
 
+class LoginResource(resource.Resource):
+
+    def render_GET(self, request):
+        return self.asyncRenderHelper(request, self.renderLogin)
+
+    @defer.inlineCallbacks
+    def renderLogin(self, request):
+        raise NotImplementedError
+
+
 class NoAuth(AuthBase):
-    name = "noauth"
+    pass
 
 
 class RemoteUserAuth(AuthBase):
-    name = "remoteuserauth"
     header = "REMOTE_USER"
     headerRegex = re.compile(r"(?P<username>[^ @]+)@(?P<realm>[^ @]+)")
 
@@ -93,17 +113,13 @@ class RemoteUserAuth(AuthBase):
                              self.header))
         res = self.headerRegex.match(header)
         if res is None:
-            raise Error(403, 'http header does not match regex! "%s" not matching %s' %
-                        (header, self.headerRegex.pattern))
+            raise Error(
+                403, 'http header does not match regex! "%s" not matching %s' %
+                (header, self.headerRegex.pattern))
         session = request.getSession()
-        if not hasattr(session, "user_infos"):
-            session.user_infos = dict(res.groupdict())
+        if not hasattr(session, "user_info"):
+            session.user_info = dict(res.groupdict())
             yield self.updateUserInfo(request)
-        defer.returnValue(True)
-
-    def authenticateViaLogin(self, request):
-        raise Error(403, "Please check with your administrator"
-                         ", there is an issue with the reverse proxy")
 
 
 class AuthRealm(object):
@@ -116,22 +132,25 @@ class AuthRealm(object):
     def requestAvatar(self, avatarId, mind, *interfaces):
         if IResource in interfaces:
             return (IResource,
-                    PreAuthenticatedLoginResource(self.master, self.auth, avatarId),
+                    PreAuthenticatedLoginResource(self.master, avatarId),
                     lambda: None)
         raise NotImplementedError()
 
 
 class TwistedICredAuthBase(AuthBase):
-    name = "icredauth"
 
     def __init__(self, credentialFactories, checkers, **kwargs):
         AuthBase.__init__(self, **kwargs)
         self.credentialFactories = credentialFactories
         self.checkers = checkers
 
-    def getLoginResource(self, master):
-        return HTTPAuthSessionWrapper(Portal(AuthRealm(master, self), self.checkers),
-                                      self.credentialFactories)
+    def getLoginResource(self):
+        return HTTPAuthSessionWrapper(
+            Portal(AuthRealm(self.master, self), self.checkers),
+            self.credentialFactories)
+
+    def getLogoutResource(self):
+        return LogoutResource(self.master)
 
 
 class HTPasswdAuth(TwistedICredAuthBase):
@@ -139,95 +158,39 @@ class HTPasswdAuth(TwistedICredAuthBase):
     def __init__(self, passwdFile, **kwargs):
         TwistedICredAuthBase.__init__(
             self,
-            [DigestCredentialFactory("md5", "buildbot"), BasicCredentialFactory("buildbot")],
+            [DigestCredentialFactory("md5", "buildbot"),
+             BasicCredentialFactory("buildbot")],
             [FilePasswordDB(passwdFile)],
             **kwargs)
 
 
-class BasicAuth(TwistedICredAuthBase):
+class UserPasswordAuth(TwistedICredAuthBase):
 
     def __init__(self, users, **kwargs):
         TwistedICredAuthBase.__init__(
             self,
-            [DigestCredentialFactory("md5", "buildbot"), BasicCredentialFactory("buildbot")],
+            [DigestCredentialFactory("md5", "buildbot"),
+             BasicCredentialFactory("buildbot")],
             [InMemoryUsernamePasswordDatabaseDontUse(**dict(users))],
             **kwargs)
 
 
-class SessionConfigResource(resource.Resource):
-    # enable reconfigResource calls
-    needsReconfig = True
-
-    def reconfigResource(self, new_config):
-        self.config = new_config.www
-
-    def render_GET(self, request):
-        return self.asyncRenderHelper(request, self.renderConfig)
-
-    @defer.inlineCallbacks
-    def renderConfig(self, request):
-        config = {}
-        request.setHeader("content-type", 'text/javascript')
-        request.setHeader("Cache-Control", "public;max-age=0")
-
-        session = request.getSession()
-        try:
-            yield self.config['auth'].maybeAutoLogin(request)
-        except Error, e:
-            config["on_load_warning"] = e.message
-
-        if hasattr(session, "user_infos"):
-            config.update({"user": session.user_infos})
-        else:
-            config.update({"user": {"anonymous": True}})
-        config.update(self.config)
-
-        def toJson(obj):
-            obj = IConfigured(obj).getConfigDict()
-            if isinstance(obj, dict):
-                return obj
-            return repr(obj) + " not yet IConfigured"
-        defer.returnValue("this.config = " + json.dumps(config, default=toJson))
-
-
-class LoginResource(resource.Resource):
-    # enable reconfigResource calls
-    needsReconfig = True
-
-    def reconfigResource(self, new_config):
-        self.auth = new_config.www['auth']
-
-    def render_GET(self, request):
-        return self.asyncRenderHelper(request, self.renderLogin)
-
-    @defer.inlineCallbacks
-    def renderLogin(self, request):
-        yield self.auth.authenticateViaLogin(request)
-
-
 class PreAuthenticatedLoginResource(LoginResource):
-    # a LoginResource, which is already authenticated via a HTTPAuthSessionWrapper
-    # disable reconfigResource calls
-    needsReconfig = False
+    # a LoginResource which is already authenticated via a
+    # HTTPAuthSessionWrapper
 
-    def __init__(self, master, auth, username):
+    def __init__(self, master, username):
         LoginResource.__init__(self, master)
-        self.auth = auth
         self.username = username
 
     @defer.inlineCallbacks
     def renderLogin(self, request):
         session = request.getSession()
-        session.user_infos = dict(username=self.username)
-        yield self.auth.updateUserInfo(request)
+        session.user_info = dict(username=self.username)
+        yield self.master.www.auth.updateUserInfo(request)
 
 
 class LogoutResource(resource.Resource):
-    # enable reconfigResource calls
-    needsReconfig = True
-
-    def reconfigResource(self, new_config):
-        self.auth = new_config.www['auth']
 
     def render_GET(self, request):
         session = request.getSession()

@@ -1,3 +1,18 @@
+# This file is part of Buildbot.  Buildbot is free software: you can
+# redistribute it and/or modify it under the terms of the GNU General Public
+# License as published by the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+# FOR A PARTICULAR PURPOSE.  See the GNU General Public License for more
+# details.
+#
+# You should have received a copy of the GNU General Public License along with
+# this program; if not, write to the Free Software Foundation, Inc., 51
+# Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+#
+# Copyright Buildbot Team Members
+
 import ldap
 
 from buildbot.util import flatten
@@ -9,7 +24,7 @@ from twisted.internet import threads
 class LdapUserInfo(avatar.AvatarBase, auth.UserInfoProviderBase):
     name = 'ldap'
 
-    def __init__(self, uri, bind_user, bind_pw,
+    def __init__(self, uri, bindUser, bindPw,
                  accountBase, groupBase,
                  accountPattern, groupMemberPattern,
                  accountFullName,
@@ -21,8 +36,8 @@ class LdapUserInfo(avatar.AvatarBase, auth.UserInfoProviderBase):
         avatar.AvatarBase.__init__(self)
         auth.UserInfoProviderBase.__init__(self)
         self.uri = uri
-        self.bind_user = bind_user
-        self.bind_pw = bind_pw
+        self.bindUser = bindUser
+        self.bindPw = bindPw
         self.accountBase = accountBase
         self.accountEmail = accountEmail
         self.accountPattern = accountPattern
@@ -38,7 +53,7 @@ class LdapUserInfo(avatar.AvatarBase, auth.UserInfoProviderBase):
         def thd():
             infos = {'username': username}
             l = ldap.initialize(self.uri)
-            l.simple_bind_s(self.bind_user, self.bind_pw)
+            l.simple_bind_s(self.bindUser, self.bindPw)
             pattern = self.accountPattern % dict(username=username)
             res = l.search_s(self.accountBase, ldap.SCOPE_SUBTREE, pattern, [
                 self.accountEmail, self.accountFullName, 'dn'] + self.accountExtraFields)
@@ -72,7 +87,7 @@ class LdapUserInfo(avatar.AvatarBase, auth.UserInfoProviderBase):
     def getUserAvatar(self, user_email, size, defaultAvatarUrl):
         def thd():
             l = ldap.initialize(self.uri)
-            l.simple_bind_s(self.bind_user, self.bind_pw)
+            l.simple_bind_s(self.bindUser, self.bindPw)
             pattern = self.avatarPattern % dict(email=user_email)
             res = l.search_s(self.accountBase, ldap.SCOPE_SUBTREE, pattern, [self.avatarData])
             if len(res) == 0:

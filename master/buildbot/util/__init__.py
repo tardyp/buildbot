@@ -23,9 +23,9 @@ import types
 
 from twisted.python import reflect
 
+from buildbot.interfaces import IConfigured
 from buildbot.util.misc import SerializedInvocation
 from buildbot.util.misc import deferredLocked
-from buildbot.interfaces import IConfigured
 
 from zope.interface import implements
 
@@ -117,13 +117,6 @@ class ComparableMixin(object):
         reflect.accumulateClassList(self.__class__, 'compare_attrs', compare_attrs)
         return dict([(k, getattr(self, k)) for k in compare_attrs
                     if hasattr(self, k) and k not in ("passwd", "password")])
-
-
-class ConfiguredMixin(object):
-    implements(IConfigured)
-
-    def getConfigDict(self):
-        return {'name': self.name}
 
 
 def diffSets(old, new):
@@ -276,4 +269,4 @@ __all__ = [
     'naturalSort', 'now', 'formatInterval', 'ComparableMixin', 'json',
     'safeTranslate', 'none_or_str',
     'NotABranch', 'deferredLocked', 'SerializedInvocation', 'UTC',
-    'diffSets', 'makeList', 'in_reactor', 'string2boolean', 'ConfiguredMixin']
+    'diffSets', 'makeList', 'in_reactor', 'string2boolean']
