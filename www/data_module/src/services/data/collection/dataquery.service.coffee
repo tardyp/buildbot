@@ -33,7 +33,7 @@ class DataQuery extends Factory
                         when 'le' then cmp = v[field] <= value
                         when 'gt' then cmp = v[field] >  value
                         when 'ge' then cmp = v[field] >= value
-                        else cmp = v[field] == value or
+                        else cmp = ('' + v[field]) == ('' + value) or # conventing both into string
                             (angular.isArray(v[field]) and value in v[field]) or
                             # private fields added by the data service
                             v["_#{field}"] == value or
