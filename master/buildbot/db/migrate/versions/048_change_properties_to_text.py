@@ -15,12 +15,22 @@
 
 from __future__ import absolute_import
 from __future__ import print_function
+import sqlalchemy as sa
+from migrate import changeset
 
 
-def matchTuple(routingKey, filter):
-    if len(filter) != len(routingKey):
-        return False
-    for k, f in zip(routingKey, filter):
-        if f is not None and f != k:
-            return False
-    return True
+def upgrade(migrate_engine):
+    metadata = sa.MetaData()
+    metadata.bind = migrate_engine
+
+    if migrate_engine.dialect.name == "postgresql":
+        # changeset.alter_column has no effect on postgres, so we do this with raw sql
+        migrate_engine.execute("alter table change_properties alter column property_value type text")
+
+    else:
+        # Commit messages can get too big for the normal 1024 String limit.
+        changeset.alter_column(
+            sa.Column('property_value', sa.Text, nullable=False),
+            table='change_properties',
+            metadata=metadata,
+            engine=migrate_engine)
