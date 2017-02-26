@@ -16,6 +16,7 @@
 from __future__ import absolute_import
 from __future__ import print_function
 from future.builtins import range
+from future.moves.urllib.parse import urlparse
 from future.utils import iteritems
 from future.utils import itervalues
 from future.utils import string_types
@@ -102,23 +103,31 @@ class V2RootResource(www.WwwTestMixin, unittest.TestCase):
     def test_default_origin(self):
         self.master.config.buildbotURL = 'http://server/path/'
         self.rsrc.reconfigResource(self.master.config)
-        self.assertEqual(
-            [r.pattern for r in self.rsrc.origins], [r'http\:\/\/server\Z(?ms)'])
+        parsedURL = urlparse(self.master.config.buildbotURL)
+        testURL = parsedURL.scheme + "://" + parsedURL.netloc
+        self.assertTrue(re.match(self.rsrc.origins[0].pattern ,
+                                 testURL))
 
         self.master.config.buildbotURL = 'http://server/'
         self.rsrc.reconfigResource(self.master.config)
-        self.assertEqual(
-            [r.pattern for r in self.rsrc.origins], [r'http\:\/\/server\Z(?ms)'])
+        parsedURL = urlparse(self.master.config.buildbotURL)
+        testURL = parsedURL.scheme + "://" + parsedURL.netloc
+        self.assertTrue(re.match(self.rsrc.origins[0].pattern ,
+                                 testURL))
 
         self.master.config.buildbotURL = 'http://server:8080/'
         self.rsrc.reconfigResource(self.master.config)
-        self.assertEqual(
-            [r.pattern for r in self.rsrc.origins], [r'http\:\/\/server\:8080\Z(?ms)'])
+        parsedURL = urlparse(self.master.config.buildbotURL)
+        testURL = parsedURL.scheme + "://" + parsedURL.netloc
+        self.assertTrue(re.match(self.rsrc.origins[0].pattern ,
+                                 testURL))
 
         self.master.config.buildbotURL = 'https://server:8080/'
         self.rsrc.reconfigResource(self.master.config)
-        self.assertEqual(
-            [r.pattern for r in self.rsrc.origins], [r'https\:\/\/server\:8080\Z(?ms)'])
+        parsedURL = urlparse(self.master.config.buildbotURL)
+        testURL = parsedURL.scheme + "://" + parsedURL.netloc
+        self.assertTrue(re.match(self.rsrc.origins[0].pattern ,
+                                 testURL))
 
 
 class V2RootResource_CORS(www.WwwTestMixin, unittest.TestCase):
