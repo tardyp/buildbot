@@ -40,12 +40,12 @@ from buildbot import locks
 from buildbot import util
 from buildbot.interfaces import IRenderable
 from buildbot.revlinks import default_revlink_matcher
-from buildbot.util import config as util_config
-from buildbot.util import identifiers as util_identifiers
-from buildbot.util import service as util_service
 from buildbot.util import ComparableMixin
 from buildbot.util import bytes2NativeString
+from buildbot.util import config as util_config
+from buildbot.util import identifiers as util_identifiers
 from buildbot.util import safeTranslate
+from buildbot.util import service as util_service
 from buildbot.worker_transition import WorkerAPICompatMixin
 from buildbot.worker_transition import reportDeprecatedWorkerNameUsage
 from buildbot.www import auth
@@ -289,6 +289,8 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
         "schedulers",
         "secretsProviders",
         "services",
+        # we had c['status'] = [] for a while in our default master.cfg
+        # so we need to keep it there
         "status",
         "title",
         "titleURL",
@@ -353,7 +355,6 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
             config.load_builders(filename, config_dict)
             config.load_workers(filename, config_dict)
             config.load_change_sources(filename, config_dict)
-            config.load_status(filename, config_dict)
             config.load_user_managers(filename, config_dict)
             config.load_www(filename, config_dict)
             config.load_services(filename, config_dict)
@@ -363,7 +364,6 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
             config.check_schedulers()
             config.check_locks()
             config.check_builders()
-            config.check_status()
             config.check_ports()
         finally:
             _errors = None
@@ -431,6 +431,12 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
                     '0.9.0',
                     "NOTE: `{}` is deprecated and ignored "
                     "They are replaced by util.JanitorConfigurator".format(horizon))
+
+        if 'status' in config_dict:
+            warnDeprecated(
+                '0.9.0',
+                "NOTE: `status` targets are deprecated and ignored "
+                "They are replaced by reporters")
 
         copy_int_param('changeHorizon')
         copy_int_param('logCompressionLimit')
@@ -697,7 +703,8 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
 
         for worker in workers:
             if not interfaces.IWorker.providedBy(worker):
-                msg = "{} must be a list of Worker instances but there is {!r}".format(conf_key, worker)
+                msg = "{} must be a list of Worker instances but there is {!r}".format(
+                    conf_key, worker)
                 error(msg)
                 return False
 
@@ -769,25 +776,6 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
 
         self.change_sources = change_sources
 
-    def load_status(self, filename, config_dict):
-        if 'status' not in config_dict:
-            return
-        status = config_dict.get('status', [])
-
-        msg = "c['status'] must be a list of status receivers"
-        if not isinstance(status, (list, tuple)):
-            error(msg)
-            return
-
-        msg = lambda s: "c['status'] contains an object that is not a status receiver (type %r)" % type(
-            s)
-        for s in status:
-            if not interfaces.IStatusReceiver.providedBy(s):
-                error(msg(s))
-                return
-
-        self.status = status
-
     def load_user_managers(self, filename, config_dict):
         if 'user_managers' not in config_dict:
             return
@@ -804,12 +792,13 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
         if 'www' not in config_dict:
             return
         www_cfg = config_dict['www']
-        allowed = set(['port', 'debug', 'json_cache_seconds',
-                       'rest_minimum_version', 'allowed_origins', 'jsonp',
-                       'plugins', 'auth', 'authz', 'avatar_methods', 'logfileName',
-                       'logRotateLength', 'maxRotatedFiles', 'versions',
-                       'change_hook_dialects', 'change_hook_auth',
-                       'custom_templates_dir', 'cookie_expiration_time'])
+        allowed = {'port', 'debug', 'json_cache_seconds',
+                   'rest_minimum_version', 'allowed_origins', 'jsonp',
+                   'plugins', 'auth', 'authz', 'avatar_methods', 'logfileName',
+                   'logRotateLength', 'maxRotatedFiles', 'versions',
+                   'change_hook_dialects', 'change_hook_auth',
+                   'custom_templates_dir', 'cookie_expiration_time',
+                   'ui_default_config'}
         unknown = set(list(www_cfg)) - allowed
 
         if unknown:
@@ -833,7 +822,8 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
         cookie_expiration_time = www_cfg.get('cookie_expiration_time')
         if cookie_expiration_time is not None:
             if not isinstance(cookie_expiration_time, datetime.timedelta):
-                error('Invalid www["cookie_expiration_time"] configuration should be a datetime.timedelta')
+                error(
+                    'Invalid www["cookie_expiration_time"] configuration should be a datetime.timedelta')
 
         self.www.update(www_cfg)
 
@@ -846,6 +836,10 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
                 error("%s object should be an instance of "
                       "buildbot.util.service.BuildbotService" % type(_service))
 
+                continue
+
+            if _service.name in self.services:
+                error('Duplicate service name %r' % _service.name)
                 continue
 
             self.services[_service.name] = _service
@@ -936,12 +930,6 @@ class MasterConfig(util.ComparableMixin, WorkerAPICompatMixin):
                 error("duplicate builder builddir '%s'" % b.builddir)
             seen_builddirs.add(b.builddir)
 
-    def check_status(self):
-        # allow status receivers to check themselves against the rest of the
-        # receivers
-        for s in self.status:
-            s.checkConfig(self.status)
-
     def check_ports(self):
         ports = set()
         if self.protocols:
@@ -972,7 +960,7 @@ class BuilderConfig(util_config.ConfiguredMixin, WorkerAPICompatMixin):
                  tags=None, category=None,
                  nextWorker=None, nextBuild=None, locks=None, env=None,
                  properties=None, collapseRequests=None, description=None,
-                 canStartBuild=None,
+                 canStartBuild=None, defaultProperties=None,
 
                  slavename=None,  # deprecated, use `workername` instead
                  slavenames=None,  # deprecated, use `workernames` instead
@@ -1015,7 +1003,7 @@ class BuilderConfig(util_config.ConfiguredMixin, WorkerAPICompatMixin):
             error(
                 "builder names must not start with an underscore: '%s'" % name)
         try:
-            self.name = util.ascii2unicode(name)
+            self.name = util.bytes2unicode(name, encoding="ascii")
         except UnicodeDecodeError:
             error("builder names must be unicode or ASCII")
 
@@ -1041,7 +1029,8 @@ class BuilderConfig(util_config.ConfiguredMixin, WorkerAPICompatMixin):
 
         if workername:
             if not isinstance(workername, str):
-                error("builder '%s': workername must be a string but it is %r" % (name, workername))
+                error("builder '%s': workername must be a string but it is %r" % (
+                    name, workername))
             workernames = workernames + [workername]
         if not workernames:
             error("builder '%s': at least one workername is required" %
@@ -1117,6 +1106,7 @@ class BuilderConfig(util_config.ConfiguredMixin, WorkerAPICompatMixin):
         if not isinstance(self.env, dict):
             error("builder's env must be a dictionary")
         self.properties = properties or {}
+        self.defaultProperties = defaultProperties or {}
         self.collapseRequests = collapseRequests
 
         self.description = description
@@ -1143,6 +1133,8 @@ class BuilderConfig(util_config.ConfiguredMixin, WorkerAPICompatMixin):
             rv['env'] = self.env
         if self.properties:
             rv['properties'] = self.properties
+        if self.defaultProperties:
+            rv['defaultProperties'] = self.defaultProperties
         if self.collapseRequests is not None:
             rv['collapseRequests'] = self.collapseRequests
         if self.description:

@@ -623,7 +623,7 @@ This step takes the following arguments:
 
 ``login``
     Password to use while performing login to the remote CVS server.
-    Default is ``None`` meaning that no login needs to be peformed.
+    Default is ``None`` meaning that no login needs to be performed.
 
 .. bb:step:: Bzr
 
@@ -818,6 +818,9 @@ The Repo step takes the following arguments:
     If not present the tarball will be created automatically after first sync.
     It is a copy of the ``.repo`` directory which contains all the Git objects.
     This feature helps to minimize network usage on very big projects with lots of workers.
+
+    The suffix of the tarball determines if the tarball is compressed and which compressor is chosen.
+    Supported suffixes are ``bz2``, ``gz``, ``lzma``, ``lzop``, and ``pigz``.
 
 ``jobs``
     (optional, defaults to ``None``): Number of projects to fetch simultaneously while syncing.
@@ -1130,7 +1133,7 @@ The :bb:step:`ShellCommand` arguments are:
     This option is not available on Windows.
 
     In general, you do not want to use a pseudo-terminal.
-    This is is *only* useful for running commands that require a terminal - for example, testing a command-line application that will only accept passwords read from a terminal.
+    This is *only* useful for running commands that require a terminal - for example, testing a command-line application that will only accept passwords read from a terminal.
     Using a pseudo-terminal brings lots of compatibility problems, and prevents Buildbot from distinguishing the standard error (red) and standard output (black) streams.
 
     In previous versions, the advantage of using a pseudo-terminal was that ``grandchild`` processes were more likely to be cleaned up if the build was interrupted or times out.

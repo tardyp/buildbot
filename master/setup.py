@@ -204,6 +204,7 @@ setup_args = {
         "buildbot.test.fake",
         "buildbot.test.fuzz",
         "buildbot.test.integration",
+        "buildbot.test.integration.interop",
         "buildbot.test.regressions",
         "buildbot.test.unit",
     ]),
@@ -330,6 +331,7 @@ setup_args = {
             ('buildbot.reporters.gerrit', ['GerritStatusPush']),
             ('buildbot.reporters.gerrit_verify_status',
              ['GerritVerifyStatusPush']),
+            ('buildbot.reporters.hipchat', ['HipChatStatusPush']),
             ('buildbot.reporters.http', ['HttpStatusPush']),
             ('buildbot.reporters.github', ['GitHubStatusPush', 'GitHubCommentPush']),
             ('buildbot.reporters.gitlab', ['GitLabStatusPush']),
@@ -365,7 +367,7 @@ setup_args = {
             ('buildbot.process.logobserver', ['LogLineObserver']),
             ('buildbot.process.properties', [
                 'FlattenList', 'Interpolate', 'Property', 'Transform',
-                'WithProperties', 'renderer']),
+                'WithProperties', 'renderer', 'Secret']),
             ('buildbot.process.properties', [
                 'CommandlineUserManager']),
             ('buildbot.revlinks', ['RevlinkMatch']),
@@ -413,6 +415,7 @@ setup_args = {
             ('buildbot.www.hooks.gitlab', ['gitlab']),
             ('buildbot.www.hooks.gitorious', ['gitorious']),
             ('buildbot.www.hooks.poller', ['poller']),
+            ('buildbot.www.hooks.bitbucketcloud', ['bitbucketcloud']),
             ('buildbot.www.hooks.bitbucketserver', ['bitbucketserver'])
         ])
     ]), {
@@ -491,7 +494,6 @@ test_deps = [
     'moto',
     # txgithub required to run buildbot.status.github module tests
     'txgithub',
-    'ramlfications',
     'mock>=2.0.0',
 ]
 if sys.platform != 'win32':
@@ -536,7 +538,6 @@ setup_args['extras_require'] = {
         'sphinxcontrib-spelling',
         'pyenchant',
         'docutils>=0.8',
-        'ramlfications',
         'sphinx-jinja',
         'towncrier'
     ],

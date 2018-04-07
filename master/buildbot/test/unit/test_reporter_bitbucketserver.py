@@ -23,14 +23,15 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from buildbot import config
+from buildbot.process.properties import Interpolate
 from buildbot.process.results import FAILURE
 from buildbot.process.results import SUCCESS
 from buildbot.reporters.bitbucketserver import HTTP_CREATED
 from buildbot.reporters.bitbucketserver import HTTP_PROCESSED
 from buildbot.reporters.bitbucketserver import BitbucketServerPRCommentPush
 from buildbot.reporters.bitbucketserver import BitbucketServerStatusPush
-from buildbot.test.fake import httpclientservice as fakehttpclientservice
 from buildbot.test.fake import fakemaster
+from buildbot.test.fake import httpclientservice as fakehttpclientservice
 from buildbot.test.util.logging import LoggingMixin
 from buildbot.test.util.notifier import NotifierTestMixin
 from buildbot.test.util.reporter import ReporterTestMixin
@@ -53,7 +54,7 @@ class TestBitbucketServerStatusPush(unittest.TestCase, ReporterTestMixin, Loggin
             'serv', auth=('username', 'passwd'),
             debug=None, verify=None)
         self.sp = sp = BitbucketServerStatusPush(
-            "serv", "username", "passwd", **kwargs)
+            "serv", Interpolate("username"), Interpolate("passwd"), **kwargs)
         yield sp.setServiceParent(self.master)
         yield self.master.startService()
 
@@ -197,7 +198,7 @@ class TestBitbucketServerPRCommentPush(unittest.TestCase, NotifierTestMixin, Log
             self.master, self, 'serv', auth=('username', 'passwd'), debug=None,
             verify=None)
         self.cp = BitbucketServerPRCommentPush(
-            "serv", "username", "passwd", verbose=verbose, **kwargs)
+            "serv", Interpolate("username"), Interpolate("passwd"), verbose=verbose, **kwargs)
         self.cp.setServiceParent(self.master)
         self.cp.messageFormatter = Mock(spec=self.cp.messageFormatter)
         self.cp.messageFormatter.formatMessageForBuildResults.return_value = \
@@ -300,7 +301,8 @@ class TestBitbucketServerPRCommentPush(unittest.TestCase, NotifierTestMixin, Log
         build = builds[0]
 
         http_error_code = 500
-        error_body = {u"errors": [{u"message": u"A dataXXXbase error has occurred."}]}
+        error_body = {u"errors": [
+            {u"message": u"A dataXXXbase error has occurred."}]}
 
         self._http.expect(
             "post",
@@ -312,7 +314,8 @@ class TestBitbucketServerPRCommentPush(unittest.TestCase, NotifierTestMixin, Log
         build['complete'] = True
         yield self.cp.buildComplete(("builds", 20, "finished"), build)
 
-        self.assertLogged("^{}: Unable to send a comment: ".format(http_error_code))
+        self.assertLogged(
+            "^{}: Unable to send a comment: ".format(http_error_code))
         self.assertLogged("A dataXXXbase error has occurred")
 
     @defer.inlineCallbacks

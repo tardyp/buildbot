@@ -22,11 +22,12 @@ from twisted.internet import defer
 from twisted.trial import unittest
 
 from buildbot import config
+from buildbot.process.properties import Interpolate
 from buildbot.process.results import SUCCESS
 from buildbot.reporters.hipchat import HOSTED_BASE_URL
 from buildbot.reporters.hipchat import HipChatStatusPush
-from buildbot.test.fake import httpclientservice as fakehttpclientservice
 from buildbot.test.fake import fakemaster
+from buildbot.test.fake import httpclientservice as fakehttpclientservice
 from buildbot.test.util.logging import LoggingMixin
 from buildbot.test.util.reporter import ReporterTestMixin
 
@@ -81,6 +82,18 @@ class TestHipchatStatusPush(unittest.TestCase, ReporterTestMixin, LoggingMixin):
         yield self.createReporter(builder_user_map=2)
         config._errors.addError.assert_any_call(
             'builder_user_map must be a dict')
+
+    @defer.inlineCallbacks
+    def test_interpolateAuth(self):
+        yield self.createReporter(auth_token=Interpolate('auth'), builder_user_map={'Builder0': '123'})
+        build = yield self.setupBuildResults()
+        self._http.expect(
+            'post',
+            '/v2/user/123/message',
+            params=dict(auth_token='auth'),
+            json={'message':
+                  'Buildbot started build Builder0 here: http://localhost:8080/#builders/79/builds/0'})
+        self.sp.buildStarted(('build', 20, 'new'), build)
 
     @defer.inlineCallbacks
     def test_build_started(self):

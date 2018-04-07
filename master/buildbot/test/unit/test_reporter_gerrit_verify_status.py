@@ -30,8 +30,8 @@ from buildbot.process.properties import renderer
 from buildbot.process.results import FAILURE
 from buildbot.process.results import SUCCESS
 from buildbot.reporters.gerrit_verify_status import GerritVerifyStatusPush
-from buildbot.test.fake import httpclientservice as fakehttpclientservice
 from buildbot.test.fake import fakemaster
+from buildbot.test.fake import httpclientservice as fakehttpclientservice
 from buildbot.test.util import logging
 from buildbot.test.util.reporter import ReporterTestMixin
 
@@ -52,9 +52,10 @@ class TestGerritVerifyStatusPush(unittest.TestCase, ReporterTestMixin, logging.L
 
     @defer.inlineCallbacks
     def createGerritStatus(self, **kwargs):
-        auth = kwargs.pop('auth', ('log', 'pass'))
+        auth = kwargs.pop('auth', ('log', Interpolate('pass')))
+
         self._http = yield fakehttpclientservice.HTTPClientService.getFakeService(
-            self.master, self, "gerrit", auth=auth,
+            self.master, self, "gerrit", auth=('log', 'pass'),
             debug=None, verify=None)
         self.sp = sp = GerritVerifyStatusPush("gerrit", auth=auth, **kwargs)
         sp.sessionFactory = Mock(return_value=Mock())
@@ -114,7 +115,8 @@ class TestGerritVerifyStatusPush(unittest.TestCase, ReporterTestMixin, logging.L
         build['complete_at'] = None
         self.sp.buildStarted(("build", 20, "started"), build)
         build['complete'] = True
-        build['complete_at'] = build['started_at'] + datetime.timedelta(hours=2, minutes=1, seconds=4)
+        build['complete_at'] = build['started_at'] + \
+            datetime.timedelta(hours=2, minutes=1, seconds=4)
         self.sp.buildFinished(("build", 20, "finished"), build)
         build['results'] = FAILURE
         self.sp.buildFinished(("build", 20, "finished"), build)
@@ -154,7 +156,8 @@ class TestGerritVerifyStatusPush(unittest.TestCase, ReporterTestMixin, logging.L
         build['complete_at'] = None
         self.sp.buildStarted(("build", 20, "started"), build)
         build['complete'] = True
-        build['complete_at'] = build['started_at'] + datetime.timedelta(hours=2, minutes=1, seconds=4)
+        build['complete_at'] = build['started_at'] + \
+            datetime.timedelta(hours=2, minutes=1, seconds=4)
         self.sp.buildFinished(("build", 20, "finished"), build)
 
     @defer.inlineCallbacks
@@ -191,7 +194,8 @@ class TestGerritVerifyStatusPush(unittest.TestCase, ReporterTestMixin, logging.L
         build['complete_at'] = None
         self.sp.buildStarted(("build", 20, "started"), build)
         build['complete'] = True
-        build['complete_at'] = build['started_at'] + datetime.timedelta(hours=2, minutes=1, seconds=4)
+        build['complete_at'] = build['started_at'] + \
+            datetime.timedelta(hours=2, minutes=1, seconds=4)
         self.sp.buildFinished(("build", 20, "finished"), build)
 
     @defer.inlineCallbacks
@@ -228,7 +232,8 @@ class TestGerritVerifyStatusPush(unittest.TestCase, ReporterTestMixin, logging.L
         build['complete_at'] = None
         self.sp.buildStarted(("build", 20, "started"), build)
         build['complete'] = True
-        build['complete_at'] = build['started_at'] + datetime.timedelta(hours=2, minutes=1, seconds=4)
+        build['complete_at'] = build['started_at'] + \
+            datetime.timedelta(hours=2, minutes=1, seconds=4)
         self.sp.buildFinished(("build", 20, "finished"), build)
 
     @defer.inlineCallbacks
@@ -267,7 +272,8 @@ class TestGerritVerifyStatusPush(unittest.TestCase, ReporterTestMixin, logging.L
         build['complete_at'] = None
         self.sp.buildStarted(("build", 20, "started"), build)
         build['complete'] = True
-        build['complete_at'] = build['started_at'] + datetime.timedelta(hours=2, minutes=1, seconds=4)
+        build['complete_at'] = build['started_at'] + \
+            datetime.timedelta(hours=2, minutes=1, seconds=4)
         self.sp.buildFinished(("build", 20, "finished"), build)
 
     @defer.inlineCallbacks
@@ -304,7 +310,8 @@ class TestGerritVerifyStatusPush(unittest.TestCase, ReporterTestMixin, logging.L
         build['complete_at'] = None
         self.sp.buildStarted(("build", 20, "started"), build)
         build['complete'] = True
-        build['complete_at'] = build['started_at'] + datetime.timedelta(hours=2, minutes=1, seconds=4)
+        build['complete_at'] = build['started_at'] + \
+            datetime.timedelta(hours=2, minutes=1, seconds=4)
         self.sp.buildFinished(("build", 20, "finished"), build)
 
     @defer.inlineCallbacks

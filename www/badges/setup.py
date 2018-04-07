@@ -41,7 +41,8 @@ setup_www_plugin(
     ],
     package_data={
         '': [
-            'VERSION', 'templates/*.svg.j2'
+            # dist is required by buildbot_pkg
+            'VERSION', 'templates/*.svg.j2', 'static/.placeholder'
         ],
     },
     entry_points="""

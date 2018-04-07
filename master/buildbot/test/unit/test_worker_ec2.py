@@ -21,6 +21,7 @@ import os
 
 from twisted.trial import unittest
 
+from buildbot.test.util.decorators import flaky
 from buildbot.test.util.warnings import assertNotProducesWarnings
 from buildbot.test.util.warnings import assertProducesWarning
 from buildbot.test.util.warnings import assertProducesWarnings
@@ -51,6 +52,12 @@ if boto3 is None:
     mock_ec2 = skip_ec2
 
 
+def anyImageId(c):
+    for image in c.describe_images()['Images']:
+        return image['ImageId']
+    return 'foo'
+
+
 class TestEC2LatentWorker(unittest.TestCase):
     ec2_connection = None
 
@@ -77,7 +84,7 @@ class TestEC2LatentWorker(unittest.TestCase):
             raise unittest.SkipTest("KeyPairs.create_key_pair not implemented"
                                     " in this version of moto, please update.")
         r.create_security_group(GroupName=name, Description='the security group')
-        instance = r.create_instances(ImageId='foo', MinCount=1, MaxCount=1)[0]
+        instance = r.create_instances(ImageId=anyImageId(c), MinCount=1, MaxCount=1)[0]
         c.create_image(InstanceId=instance.id, Name="foo", Description="bar")
         c.terminate_instances(InstanceIds=[instance.id])
         return c, r
@@ -481,6 +488,7 @@ class TestEC2LatentWorker(unittest.TestCase):
 
         self.assertEqual(image.id, ami.id)
 
+    @flaky(issueNumber=3936)
     @mock_ec2
     def test_get_image_owners(self):
         c, r = self.botoSetup('latent_buildbot_slave')
@@ -495,13 +503,11 @@ class TestEC2LatentWorker(unittest.TestCase):
                                  )
         image = bs.get_image()
 
-        self.assertEqual(image.id, ami.id)
+        self.assertEqual(image.owner_id, ami.owner_id)
 
     @mock_ec2
     def test_get_image_location(self):
         c, r = self.botoSetup('latent_buildbot_slave')
-        amis = list(r.images.all())
-        ami = amis[0]
         bs = ec2.EC2LatentWorker('bot1', 'sekrit', 'm1.large',
                                  identifier='publickey',
                                  secret_identifier='privatekey',
@@ -511,7 +517,7 @@ class TestEC2LatentWorker(unittest.TestCase):
                                  )
         image = bs.get_image()
 
-        self.assertEqual(image.id, ami.id)
+        self.assertTrue(image.image_location.startswith("amazon/"))
 
     @mock_ec2
     def test_get_image_location_not_found(self):
@@ -568,7 +574,7 @@ class TestEC2LatentWorkerDefaultKeyairSecurityGroup(unittest.TestCase):
                                     " in this version of moto, please update.")
         r.create_security_group(GroupName='latent_buildbot_slave', Description='the security group')
         r.create_security_group(GroupName='test_security_group', Description='other security group')
-        instance = r.create_instances(ImageId='foo', MinCount=1, MaxCount=1)[0]
+        instance = r.create_instances(ImageId=anyImageId(c), MinCount=1, MaxCount=1)[0]
         c.create_image(InstanceId=instance.id, Name="foo", Description="bar")
         c.terminate_instances(InstanceIds=[instance.id])
         return c, r

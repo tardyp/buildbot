@@ -28,8 +28,8 @@ from buildbot.process.results import FAILURE
 from buildbot.process.results import SUCCESS
 from buildbot.test.fake import fakedb
 from buildbot.test.fake import fakemaster
-from buildbot.test.util import interfaces as util_interfaces
 from buildbot.test.util import endpoint
+from buildbot.test.util import interfaces as util_interfaces
 from buildbot.util import epoch2datetime
 
 A_TIMESTAMP = 1341700729
@@ -206,7 +206,8 @@ class Buildset(util_interfaces.InterfaceTests, unittest.TestCase):
                 'priority': 0,
                 'results': -1,
                 'submitted_at': epoch2datetime(A_TIMESTAMP),
-                'waited_for': True}
+                'waited_for': True,
+                'properties': None}
 
     def _buildRequestMessage1(self, brid, bsid, builderid):
         return (
@@ -333,9 +334,9 @@ class Buildset(util_interfaces.InterfaceTests, unittest.TestCase):
         expectations are checked.
         """
         if buildRequestCompletions is None:
-                buildRequestCompletions = {}
+            buildRequestCompletions = {}
         if buildRequestResults is None:
-                buildRequestResults = {}
+            buildRequestResults = {}
 
         clock = task.Clock()
         clock.advance(A_TIMESTAMP)

@@ -10,6 +10,214 @@ Release Notes
 
 .. towncrier release notes start
 
+Buildbot ``1.1.1`` ( ``2018-04-06`` )
+=====================================
+
+Bug fixes
+---------
+
+- Fix issue which marked all workers dis-configured in the database every 24h
+  (:issue:`3981` :issue:`3956` :issue:`3970`)
+- The :bb:reporter:`MailNotifier` no longer crashes when sending from/to email
+  addresses with "Real Name" parts (e.g., ``John Doe <john.doe@domain.tld>``).
+- Corrected pluralization of text on landing page of the web UI
+
+Improved Documentation
+----------------------
+
+- Corrected typo in description of libvirt
+- Update sample config to use preferred API
+
+Misc Improvements
+-----------------
+
+- Home page now contains links to recently active builders
+
+Buildbot ``1.1.0`` ( ``2018-03-10`` )
+=====================================
+
+
+Deprecations and Removals
+-------------------------
+
+- Removed ``ramlfication`` as a dependency to build the docs and run the tests.
+
+Bug fixes
+---------
+
+- Fixed buildrequests API doesn't provide properties data (:issue:`3929`)
+- Fix missing owner on builder build table (:issue:`3311`)
+- Include `hipchat` as reporter.
+- Fix encoding issues of commands with Windows workers (:issue:`3799`).
+- Fixed Relax builder name length restriction (:issue:`3413`).
+- Fix the configuration order so that services can actually use secrets (:issue:`3985`)
+- Partially fix Builder page should show the worker information  (:issue:`3546`).
+
+Features
+--------
+
+- Added the ``defaultProperties`` parameter to :bb:cfg:`builders`.
+- When a build step has a log called "summary" (case-insensitive), the Build
+  Summary page will sort that log first in the list of logs, and automatically
+  expand it.
+
+
+Buildbot ``1.0.0`` ( ``2018-02-11`` )
+=====================================
+
+Despite the major version bump, Buildbot 1.0.0 does not have major difference with the 0.9 series.
+1.0.0 is rather the mark of API stability.
+Developers do not foresee a major API break in the next few years like we had for 0.8 to 0.9.
+
+Starting with 1.0.0, Buildbot will follow `semver`_ versioning methodology.
+
+.. _semver: https://semver.org/
+
+Bug fixes
+---------
+
+- Cloning :bb:step:`Git` repository with submodules now works with Git < 1.7.6
+  instead of failing due to the use of the unsupported ``--force`` option.
+- :bb:chsrc:`GitHub` hook now properly creates a change in case of new tag or
+  new branch. :bb:chsrc:`GitHub` changes will have the ``category`` set to
+  ``tag`` when a tag was pushed to easily distinguish from a branch push.
+- Fixed issue with :py:meth:`Master.expireMasters` not always honoring its
+  ``forceHouseKeeping`` parameter. (:issue:`3783`)
+- Fixed issue with steps not correctly ending in ``CANCELLED`` status when
+  interrupted.
+- Fix maximum recursion limit issue when transferring large files with
+  ``LocalWorker`` (issue:`3014`).
+- Added an argument to P4Source that allows users to provide a callable to
+  convert Perforce branch and revision to a valid revlink URL. Perforce
+  supplies a p4web server for resolving urls into change lists.
+- Fixed issue with ``buildbot_pkg``` not hanging on yarn step on windows
+  (:issue:`3890`).
+- Fix issue with :bb:cfg:`workers` ``notify_on_missing`` not able to be
+  configurable as a single string instead of list of string (:issue:`3913`).
+- Fixed Builder page should display worker name instead of id (:issue:`3901`).
+
+Features
+--------
+
+- Add capability to override the default UI settings (:issue:`3908`)
+- All :ref:`Reporters` have been adapted to be able to use :ref:`Secret`.
+  :bb:chsrc:`SVNPoller` has been adapted to be able to use :ref:`Secret`.
+- Implement support for Bitbucket Cloud webhook plugin in
+  :py:class:`~buildbot.www.hooks.bitbucketcloud.BitbucketCloudEventHandler`
+- The ``owners`` property now includes people associated with the changes of
+  the build (:issue:`3904`).
+- The repo source step now syncs with the ``--force-sync`` flag which allows
+  the sync to proceed when a source repo in the manifest has changed.
+- Add support for compressing the repo source step cache tarball with ``pigz``,
+  a parallel gzip compressor.
+
+
+Buildbot ``0.9.15.post1`` ( ``2018-01-07`` )
+============================================
+
+Bug fixes
+---------
+
+- Fix worker reconnection fails (:issue:`3875`, :issue:`3876`)
+- Fix umask set to 0 when using LocalWorker (:issue:`3878`)
+- Fix Buildbot reconfig, when badge plugin is installed (:issue:`3879`)
+- Fix (:issue:`3865`) so that now
+  :py:class:`~buildbot.changes.svnpoller.SVNPoller` works with paths that
+  contain valid UTF-8 characters which are not ASCII.
+
+
+Buildbot ``0.9.15`` ( ``2018-01-02`` )
+======================================
+
+Bug fixes
+---------
+
+- Fix builder page not showing any build (:issue:`3820`)
+- Fix double Workers button in the menu. (:issue:`3818`)
+- Fix bad icons in the worker action dialog.
+- Fix url arguments in Buildbot :ref:`Badges` for python3.
+- Upgrading to `guanlecoja-ui` version 1.8.0, fixing two issues. Fixed issue
+  where the console view would jump to the top of page when opening the build
+  summary dialog (:issue:`3657`). Also improved sidebar behaviour by remembering
+  previous pinned vs. collapsed state.
+- Fixes issue with Buildbot :bb:worker:`DockerLatentWorker`, where Buildbot can kill running
+  workers by mistake based on the form the worker name (:issue:`3800`).
+- Fixes issue with Buildbot :bb:worker:`DockerLatentWorker` not reaping zombies process within its container environment.
+- Update requirement text to use the modern "docker" module from the older
+  "docker-py" module name
+- When multiple :bb:cfg:`reporter` or :bb:cfg:`services` are configured with
+  the same name, an error is now displayed instead of silently discarding all
+  but the last one :issue:`3813`.
+- Fixed exception when using :py:class:`buildbot.www.auth.CustomAuth`
+
+Features
+--------
+
+- New Buildbot SVG icons for web UI. The web UI now uses a colored favicon
+  according to build results (:issue:`3785`).
+- ``paused`` and ``graceful`` :ref:`Worker-states` are now stored in the
+  database.
+- :ref:`Worker-states` are now displayed in the web UI.
+- Quarantine timers is now using the ``paused`` worker state.
+- Quarantine timer is now enabled when a build finish on ``EXCEPTION`` state.
+- Standalone binaries for buildbot-worker package are now published for windows and linux (``amd64``).
+  This allows to run a buildbot-worker without having a python environment.
+- New ``buildbot-worker create-worker --maxretries`` for :ref:`Latent-Workers`
+  to quit if the master is or becomes unreachable.
+- Badges can now display `running` as status.
+- The database schema now supports cascade deletes for all objects instead of
+  raising an error when deleting a record which has other records pointing to
+  it via foreign keys.
+- Buildbot can properly find its version if installed from a git archive tarball generated from a tag.
+- Enhanced the test suite to add worker/master protocol interoperability tests between python3 and python2.
+
+Deprecations and Removals
+-------------------------
+
+- buildbot.util.ascii2unicode() is removed. buildbot.util.bytes2unicode()
+  should be used instead.
+
+
+Buildbot ``0.9.14`` ( ``2017-12-08`` )
+======================================
+
+Bug fixes
+---------
+
+- Compile step now properly takes the decodeRC parameter in account
+  (:issue:`3774`)
+- Fix duplicate build requests results in
+  :py:class:`~buildbot.db.buildrequests.BuildRequestsConnectorComponent` when
+  querying the database (:issue:`3712`).
+- :py:class:`~buildbot.changes.gitpoller.GitPoller` now accepts git branch
+  names with UTF-8 characters (:issue:`3769`).
+- Fixed inconsistent use of `pointer` style mouse cursor by removing it from
+  the `.label` css rule and instead creating a new `.clickable` css rule which
+  is used only in places which are clickable and would not otherwise
+  automatically get the `pointer` icon, for example it is not needed for
+  hyper-links. (:issue:`3795`).
+- Rebuilding with the same revision now takes new change properties into
+  account instead of re-using the original build change properties
+  (:issue:`3701`).
+- Worker authentication is now delayed via a DeferredLock until Buildbot
+  configuration is finished. This fixes UnauthorizedLogin errors during
+  buildbot restart (:issue:`3462`).
+- Fixes python3 encoding issues with Windows Service (:issue:`3796`)
+
+Features
+--------
+
+- new :ref`badges` plugin which reimplement the buildbot eight png badge
+  system.
+- In progress worker control API. Worker can now be stopped and paused using the UI.
+  Note that there is no UI yet to look the status of those actions (:issue:`3429`).
+- Make maximum number of builds fetched on the builders page configurable.
+- Include `context` in the log message for `GitHubStatusPush`
+- On 'Builders' page reload builds when tags change.
+- Give reporters access to master single in renderables. This allows access to
+  build logs amongst other things
+- Added possibility to check www user credentials with a custom class.
+
 
 Buildbot ``0.9.13`` ( ``2017-11-07`` )
 ======================================

@@ -41,10 +41,10 @@ from buildbot.plugins.db import get_plugins
 from buildbot.util import bytes2NativeString
 from buildbot.util import service
 from buildbot.util import unicode2bytes
-from buildbot.www import config as wwwconfig
 from buildbot.www import auth
 from buildbot.www import avatar
 from buildbot.www import change_hook
+from buildbot.www import config as wwwconfig
 from buildbot.www import rest
 from buildbot.www import sse
 from buildbot.www import ws
@@ -80,7 +80,8 @@ class BuildbotSession(server.Session):
 
     def _fromToken(self, token):
         try:
-            decoded = jwt.decode(token, self.site.session_secret, algorithms=[SESSION_SECRET_ALGORITHM])
+            decoded = jwt.decode(token, self.site.session_secret, algorithms=[
+                                 SESSION_SECRET_ALGORITHM])
         except jwt.exceptions.ExpiredSignatureError as e:
             raise KeyError(str(e))
         except Exception as e:
@@ -113,7 +114,8 @@ class BuildbotSession(server.Session):
         self._defaultValue()
 
     def notifyOnExpire(self, callback):
-        raise NotImplementedError("BuildbotSession can't support notify on session expiration")
+        raise NotImplementedError(
+            "BuildbotSession can't support notify on session expiration")
 
     def touch(self):
         pass
@@ -259,14 +261,7 @@ class WWWService(service.ReconfigurableServiceMixin, service.AsyncMultiService):
         # was not made.
         return self._getPort().getHost().port
 
-    def setupSite(self, new_config):
-        self.reconfigurableResources = []
-
-        # we're going to need at least the base plugin (buildbot-www)
-        if 'base' not in self.apps:
-            raise RuntimeError("could not find buildbot-www; is it installed?")
-
-        root = self.apps.get('base').resource
+    def configPlugins(self, root, new_config):
         known_plugins = set(new_config.www.get('plugins', {})) | set(['base'])
         for key, plugin in list(iteritems(new_config.www.get('plugins', {}))):
             log.msg("initializing www plugin %r" % (key,))
@@ -283,6 +278,15 @@ class WWWService(service.ReconfigurableServiceMixin, service.AsyncMultiService):
             log.msg("NOTE: www plugin %r is installed but not "
                     "configured" % (plugin_name,))
 
+    def setupSite(self, new_config):
+        self.reconfigurableResources = []
+
+        # we're going to need at least the base plugin (buildbot-www)
+        if 'base' not in self.apps:
+            raise RuntimeError("could not find buildbot-www; is it installed?")
+
+        root = self.apps.get('base').resource
+        self.configPlugins(root, new_config)
         # /
         root.putChild(b'', wwwconfig.IndexResource(
             self.master, self.apps.get('base').static_dir))
@@ -339,6 +343,8 @@ class WWWService(service.ReconfigurableServiceMixin, service.AsyncMultiService):
         self.reconfigurableResources.append(resource)
 
     def reconfigSite(self, new_config):
+        root = self.apps.get('base').resource
+        self.configPlugins(root, new_config)
         new_config.www['auth'].reconfigAuth(self.master, new_config)
         cookie_expiration_time = new_config.www.get('cookie_expiration_time')
         if cookie_expiration_time is not None:

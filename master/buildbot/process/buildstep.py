@@ -26,11 +26,11 @@ import re
 
 from twisted.internet import defer
 from twisted.internet import error
-from twisted.python import util as twutil
 from twisted.python import components
 from twisted.python import deprecate
 from twisted.python import failure
 from twisted.python import log
+from twisted.python import util as twutil
 from twisted.python import versions
 from twisted.python.compat import NativeStringIO
 from twisted.python.failure import Failure
@@ -382,7 +382,8 @@ class BuildStep(results.ResultComputingConfigMixin,
 
     def __str__(self):
         args = [repr(x) for x in self._factory.args]
-        args.extend([str(k) + "=" + repr(v) for k, v in self._factory.kwargs.items()])
+        args.extend([str(k) + "=" + repr(v)
+                     for k, v in self._factory.kwargs.items()])
         return "{}({})".format(
             self.__class__.__name__, ", ".join(args))
     __repr__ = __str__
@@ -495,7 +496,8 @@ class BuildStep(results.ResultComputingConfigMixin,
             raise TypeError("step result string must be unicode (got %r)"
                             % (stepResult,))
         if self.stepid is not None:
-            stepResult = self.build.properties.cleanupTextFromSecrets(stepResult)
+            stepResult = self.build.properties.cleanupTextFromSecrets(
+                stepResult)
             yield self.master.data.updates.setStepStateString(self.stepid,
                                                               stepResult)
 
@@ -514,7 +516,7 @@ class BuildStep(results.ResultComputingConfigMixin,
         self.name = yield self.build.render(self.name)
         self.stepid, self.number, self.name = yield self.master.data.updates.addStep(
             buildid=self.build.buildid,
-            name=util.ascii2unicode(self.name))
+            name=util.bytes2unicode(self.name))
         yield self.master.data.updates.startStep(self.stepid)
 
     @defer.inlineCallbacks
@@ -753,9 +755,6 @@ class BuildStep(results.ResultComputingConfigMixin,
         raise NotImplementedError("your subclass must implement run()")
 
     def interrupt(self, reason):
-        # TODO: consider adding an INTERRUPTED or STOPPED status to use
-        # instead of FAILURE, might make the text a bit more clear.
-        # 'reason' can be a Failure, or text
         self.stopped = True
         if self._acquiringLock:
             lock, access, d = self._acquiringLock
@@ -808,7 +807,7 @@ class BuildStep(results.ResultComputingConfigMixin,
 
     def addLog(self, name, type='s', logEncoding=None):
         d = self.master.data.updates.addLog(self.stepid,
-                                            util.ascii2unicode(name),
+                                            util.bytes2unicode(name),
                                             text_type(type))
 
         @d.addCallback
@@ -838,7 +837,7 @@ class BuildStep(results.ResultComputingConfigMixin,
     @defer.inlineCallbacks
     def addCompleteLog(self, name, text):
         logid = yield self.master.data.updates.addLog(self.stepid,
-                                                      util.ascii2unicode(name), u't')
+                                                      util.bytes2unicode(name), u't')
         _log = self._newLog(name, u't', logid)
         yield _log.addContent(text)
         yield _log.finish()
@@ -847,7 +846,7 @@ class BuildStep(results.ResultComputingConfigMixin,
     @defer.inlineCallbacks
     def addHTMLLog(self, name, html):
         logid = yield self.master.data.updates.addLog(self.stepid,
-                                                      util.ascii2unicode(name), u'h')
+                                                      util.bytes2unicode(name), u'h')
         _log = self._newLog(name, u'h', logid)
         html = bytes2NativeString(html)
         yield _log.addContent(html)

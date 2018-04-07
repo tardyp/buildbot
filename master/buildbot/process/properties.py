@@ -192,9 +192,9 @@ class Properties(util.ComparableMixin):
     has_key = hasProperty
 
     def setProperty(self, name, value, source, runtime=False):
-        name = util.ascii2unicode(name)
+        name = util.bytes2unicode(name)
         json.dumps(value)  # Let the exception propagate ...
-        source = util.ascii2unicode(source)
+        source = util.bytes2unicode(source)
 
         self.properties[name] = (value, source)
         if runtime:
@@ -487,13 +487,13 @@ class _SecretRenderer(object):
 
     @defer.inlineCallbacks
     def getRenderingFor(self, properties):
-        secretsSrv = properties.getBuild().master.namedServices.get("secrets")
+        secretsSrv = properties.master.namedServices.get("secrets")
         if not secretsSrv:
             error_message = "secrets service not started, need to configure" \
                             " SecretManager in c['services'] to use 'secrets'" \
                             "in Interpolate"
             raise KeyError(error_message)
-        credsservice = properties.getBuild().master.namedServices['secrets']
+        credsservice = properties.master.namedServices['secrets']
         secret_detail = yield credsservice.get(self.secret_name)
         if secret_detail is None:
             raise KeyError("secret key %s is not found in any provider" % self.secret_name)

@@ -123,6 +123,7 @@ class Repo(Source):
                  manifestOverrideUrl=None,
                  repoDownloads=None,
                  depth=0,
+                 syncQuietly=False,
                  **kwargs):
         """
         @type  manifestURL: string
@@ -153,6 +154,9 @@ class Repo(Source):
         @type depth: integer
         @param depth: optional depth parameter to repo init.
                           If specified, create a shallow clone with given depth.
+
+        @type syncQuietly: bool.
+        @param syncQuietly: true, then suppress verbose output from repo sync.
         """
         self.manifestURL = manifestURL
         self.manifestBranch = manifestBranch
@@ -166,6 +170,7 @@ class Repo(Source):
             repoDownloads = []
         self.repoDownloads = repoDownloads
         self.depth = depth
+        self.syncQuietly = syncQuietly
         Source.__init__(self, **kwargs)
 
         assert self.manifestURL is not None
@@ -306,11 +311,13 @@ class Repo(Source):
         for command in self.manifestDownloads:
             yield self._Cmd(command, workdir=self.build.path_module.join(self.workdir, ".repo", "manifests"))
 
-        command = ['sync']
+        command = ['sync', '--force-sync']
         if self.jobs:
             command.append('-j' + str(self.jobs))
         if not self.syncAllBranches:
             command.append('-c')
+        if self.syncQuietly:
+            command.append('-q')
         self.step_status.setText(["repo sync"])
         self.stdio_log.addHeader("synching manifest %s from branch %s from %s\n"
                                  % (self.manifestFile, self.manifestBranch, self.manifestURL))
@@ -386,13 +393,16 @@ class Repo(Source):
         # Keep in mind that the compression part of tarball generation
         # can be non negligible
         tar = ['tar']
-        if self.tarball.endswith("gz"):
+        if self.tarball.endswith("pigz"):
+            tar.append('-I')
+            tar.append('pigz')
+        elif self.tarball.endswith("gz"):
             tar.append('-z')
-        if self.tarball.endswith("bz2") or self.tarball.endswith("bz"):
+        elif self.tarball.endswith("bz2") or self.tarball.endswith("bz"):
             tar.append('-j')
-        if self.tarball.endswith("lzma"):
+        elif self.tarball.endswith("lzma"):
             tar.append('--lzma')
-        if self.tarball.endswith("lzop"):
+        elif self.tarball.endswith("lzop"):
             tar.append('--lzop')
         return tar
 
