@@ -1,10 +1,10 @@
 // Register new module
-class App {
+class BBData {
     constructor() {
         return [];
     }
 }
 
-angular.module('app', new App());
+angular.module('bbData', new BBData());
 
 const context = require.context('./', true, /^(?!.*(?:module|spec|webpack.js$)).*\.js$/);
