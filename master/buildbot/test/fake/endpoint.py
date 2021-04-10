@@ -34,8 +34,8 @@ testData = {
 
 class TestsEndpoint(base.Endpoint):
     isCollection = True
-    pathPatterns = "/test"
-    rootLinkName = 'test'
+    pathPatterns = "/tests"
+    rootLinkName = 'tests'
 
     def get(self, resultSpec, kwargs):
         # results are sorted by ID for test stability
@@ -57,15 +57,16 @@ class RawTestsEndpoint(base.Endpoint):
 
 class FailEndpoint(base.Endpoint):
     isCollection = False
-    pathPatterns = "/test/fail"
+    pathPatterns = "/tests/fail"
 
     def get(self, resultSpec, kwargs):
         return defer.fail(RuntimeError('oh noes'))
 
 
+
 class TestEndpoint(base.Endpoint):
     isCollection = False
-    pathPatterns = "/test/n:testid"
+    pathPatterns = "/tests/n:testid"
 
     def get(self, resultSpec, kwargs):
         if kwargs['testid'] == 0:
@@ -78,6 +79,26 @@ class TestEndpoint(base.Endpoint):
         return defer.succeed({'action': action, 'args': args, 'kwargs': kwargs})
 
 
+class StepsEndpoint(base.Endpoint):
+    isCollection = True
+    pathPatterns = "/tests/n:testid/steps"
+    rootLinkName = 'tests'
+
+    def get(self, resultSpec, kwargs):
+        # results are sorted by ID for test stability
+        return defer.succeed(sorted(testData.values(), key=lambda v: v['id']))
+
+class StepEndpoint(base.Endpoint):
+    isCollection = False
+    pathPatterns = "/tests/n:testid/steps/n:stepid"
+
+    def get(self, resultSpec, kwargs):
+        if kwargs['testid'] == 0:
+            return None
+        return defer.succeed(testData[kwargs['testid']])
+
+
+
 class Test(base.ResourceType):
     name = "test"
     plural = "tests"
@@ -88,6 +109,18 @@ class Test(base.ResourceType):
         info = types.String()
         success = types.Boolean()
         tags = types.List(of=types.String())
+    entityType = EntityType(name)
+
+
+class Step(base.ResourceType):
+    name = "step"
+    plural = "steps"
+    endpoints = [StepsEndpoint, StepEndpoint]
+
+    class EntityType(types.Entity):
+        id = types.Integer()
+        testid = types.Integer()
+        info = types.String()
     entityType = EntityType(name)
 
 

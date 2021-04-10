@@ -29,7 +29,7 @@ from buildbot.www import graphql
 
 class V3RootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
     def setUp(self):
-        self.setUpTestReactor()
+        self.setUpTestReactor(use_asyncio=True)
         self.master = self.make_master(url="http://server/path/")
         self.master.config.www["graphql"] = {"debug": True}
         self.master.data._scanModule(endpoint)
@@ -43,6 +43,10 @@ class V3RootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
             errors = [{"message": message_or_error}]
         content = json.dumps({"data": None, "errors": errors})
         self.assertRequest(content=unicode2bytes(content), responseCode=responseCode)
+
+    def assertResult(self, result):
+        content = json.dumps({"data": result, "errors": None})
+        self.assertRequest(content=unicode2bytes(content), responseCode=200)
 
     @defer.inlineCallbacks
     def test_failure(self):
@@ -68,8 +72,28 @@ class V3RootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
             self.rsrc,
             b"/?query={tests{id}}",
         )
-        # TODO verify results
-        self.assertRequest(responseCode=200)
+        self.assertResult(
+            {
+                "tests": [
+                    {"id": 13},
+                    {"id": 14},
+                    {"id": 15},
+                    {"id": 16},
+                    {"id": 17},
+                    {"id": 18},
+                    {"id": 19},
+                    {"id": 20},
+                ]
+            }
+        )
+
+    @defer.inlineCallbacks
+    def test_get_query_item(self):
+        yield self.render_resource(
+            self.rsrc,
+            b"/?query={tests(id:13){id, info}}",
+        )
+        self.assertResult({"tests": [{"id": 13, "info": "ok"}]})
 
     @defer.inlineCallbacks
     def test_get_noquery(self):
@@ -77,7 +101,6 @@ class V3RootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
             self.rsrc,
             b"/",
         )
-        # TODO verify results
         self.assertSimpleError("GET request must contain a 'query' parameter", 400)
 
     # https://graphql.org/learn/serving-over-http/#post-request
@@ -87,36 +110,58 @@ class V3RootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
             self.rsrc,
             method=b"POST",
             content=b"{tests{id}}",
-            content_type=b"application/graphql"
+            content_type=b"application/graphql",
         )
-        # TODO verify results
-        self.assertRequest(responseCode=200)
+        self.assertResult(
+            {
+                "tests": [
+                    {"id": 13},
+                    {"id": 14},
+                    {"id": 15},
+                    {"id": 16},
+                    {"id": 17},
+                    {"id": 18},
+                    {"id": 19},
+                    {"id": 20},
+                ]
+            }
+        )
 
     @defer.inlineCallbacks
     def test_post_query_json_content(self):
-        query = {
-            "query": "{tests{id}}"
-        }
+        query = {"query": "{tests{id}}"}
         yield self.render_resource(
             self.rsrc,
             method=b"POST",
             content=json.dumps(query).encode(),
-            content_type=b"application/json"
+            content_type=b"application/json",
         )
-        # TODO verify results
-        self.assertRequest(responseCode=200)
+        self.assertResult(
+            {
+                "tests": [
+                    {"id": 13},
+                    {"id": 14},
+                    {"id": 15},
+                    {"id": 16},
+                    {"id": 17},
+                    {"id": 18},
+                    {"id": 19},
+                    {"id": 20},
+                ]
+            }
+        )
 
     @defer.inlineCallbacks
     def test_post_query_json_content_operationName(self):
         query = {
             "query": "query foo {tests{id}} query bar {tests{name}}",
-            "operationName": "fsoo"
+            "operationName": "fsoo",
         }
         yield self.render_resource(
             self.rsrc,
             method=b"POST",
             content=json.dumps(query).encode(),
-            content_type=b"application/json"
+            content_type=b"application/json",
         )
         self.assertSimpleError("json request unsupported fields: operationName", 400)
 
@@ -124,20 +169,14 @@ class V3RootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
     def test_post_query_json_badcontent_type(self):
 
         yield self.render_resource(
-            self.rsrc,
-            method=b"POST",
-            content=b"foo",
-            content_type=b"application/foo"
+            self.rsrc, method=b"POST", content=b"foo", content_type=b"application/foo"
         )
         self.assertSimpleError("unsupported content-type: application/foo", 400)
 
     @defer.inlineCallbacks
     def test_post_query_json_nocontent_type(self):
 
-        yield self.render_resource(
-            self.rsrc,
-            method=b"POST"
-        )
+        yield self.render_resource(self.rsrc, method=b"POST")
         self.assertSimpleError("no content-type", 400)
 
     @defer.inlineCallbacks

@@ -73,7 +73,13 @@ class TestReactorMixin:
     Mix this in to get TestReactor as self.reactor which is correctly cleaned up
     at the end
     """
-    def setUpTestReactor(self):
+    def setUpTestReactor(self, use_asyncio=False):
+        if use_asyncio:
+            import asyncio
+            import twisted.internet
+            from twisted.internet import asyncioreactor
+            twisted.internet.reactor = asyncioreactor.AsyncioSelectorReactor(asyncio.get_event_loop())
+
         self.patch(threadpool, 'ThreadPool', NonThreadPool)
         self.reactor = TestReactor()
         _setReactor(self.reactor)

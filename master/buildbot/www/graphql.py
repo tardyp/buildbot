@@ -14,6 +14,7 @@
 # Copyright Buildbot Team Members
 
 import json
+import asyncio
 
 from twisted.internet import defer
 from twisted.python import log
@@ -24,6 +25,11 @@ from buildbot.util import unicode2bytes
 from buildbot.www import resource
 from buildbot.www.rest import RestRootResource
 
+def as_future(d):
+    return d.asFuture(asyncio.get_event_loop())
+
+def as_deferred(f):
+    return defer.Deferred.fromFuture(asyncio.ensure_future(f))
 
 class V3RootResource(resource.Resource):
     isLeaf = True
@@ -65,11 +71,28 @@ class V3RootResource(resource.Resource):
 
         return self.asyncRenderHelper(request, self.asyncRender, writeError)
 
+    @defer.inlineCallbacks
     def renderQuery(self, query):
         query = self.graphql.parse(query)
         errors = self.graphql.validate(self.schema, query)
         if errors:
             raise Error(400, [e.formatted for e in errors])
+
+        def field_resolver(parent, resolve_info):
+            if parent is None:
+                data = self.master.data.get((resolve_info.field_name, ))
+                return as_future(data)
+            else:
+                if resolve_info.field_name in parent:
+                    return parent[resolve_info.field_name]
+
+        # Execute
+        res  = yield as_deferred(self.graphql.execute(
+            self.schema,
+            query,
+            field_resolver=field_resolver,
+        ))
+        return res
 
     @defer.inlineCallbacks
     def asyncRender(self, request):
@@ -100,7 +123,9 @@ class V3RootResource(resource.Resource):
             raise Error(400, b"invalid HTTP method")
 
         res = yield self.renderQuery(query)
-        return res
 
+        request.setHeader(b"content-type", b"application/json; charset=utf-8")
+        data = json.dumps({"data": res.data, "errors": res.errors}).encode()
+        request.write(data)
 
 RestRootResource.addApiVersion(3, V3RootResource)
