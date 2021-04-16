@@ -29,7 +29,10 @@ def as_future(d):
     return d.asFuture(asyncio.get_event_loop())
 
 def as_deferred(f):
-    return defer.Deferred.fromFuture(asyncio.ensure_future(f))
+    try:
+        return defer.Deferred.fromFuture(asyncio.ensure_future(f))
+    except TypeError:
+        return defer.succeed(f)
 
 class V3RootResource(resource.Resource):
     isLeaf = True
@@ -45,11 +48,13 @@ class V3RootResource(resource.Resource):
         if self.gql_config is not None:
             try:
                 import graphql
+                from graphql.execution.execute import default_field_resolver
             except ImportError:  # pragma: no cover
                 raise ImportError(
                     "graphql is enabled but 'graphql-core' is not installed"
                 )
             self.graphql = graphql
+            self.default_field_resolver = default_field_resolver
             self.debug = self.gql_config.get("debug")
             self.schema = graphql.build_schema(self.master.data.get_graphql_schema())
 
@@ -78,13 +83,15 @@ class V3RootResource(resource.Resource):
         if errors:
             raise Error(400, [e.formatted for e in errors])
 
-        def field_resolver(parent, resolve_info):
+        @defer.inlineCallbacks
+        def field_resolver(parent, resolve_info, **args):
             if parent is None:
-                data = self.master.data.get((resolve_info.field_name, ))
-                return as_future(data)
-            else:
-                if resolve_info.field_name in parent:
-                    return parent[resolve_info.field_name]
+                if 'id' in args:
+                    data = yield self.master.data.get((resolve_info.field_name + 's', args['id']))
+                else:
+                    data = yield self.master.data.get((resolve_info.field_name, ))
+                return data
+            return self.default_field_resolver(parent, resolve_info, **args)
 
         # Execute
         res  = yield as_deferred(self.graphql.execute(
@@ -123,9 +130,12 @@ class V3RootResource(resource.Resource):
             raise Error(400, b"invalid HTTP method")
 
         res = yield self.renderQuery(query)
-
+        errors = None
+        if res.errors:
+            errors = [e.formatted for e in res.errors]
+            print(errors)
         request.setHeader(b"content-type", b"application/json; charset=utf-8")
-        data = json.dumps({"data": res.data, "errors": res.errors}).encode()
+        data = json.dumps({"data": res.data, "errors": errors}).encode()
         request.write(data)
 
 RestRootResource.addApiVersion(3, V3RootResource)

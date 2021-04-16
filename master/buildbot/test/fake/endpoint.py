@@ -131,6 +131,7 @@ scalar Binary # arbitrary data stored as base85
 scalar JSON  # arbitrary json stored as string, mainly used for properties values
 type Query {
   tests: [Test]!
+  test(id:Int): Test!
 }
 type Test {
   id: Int!

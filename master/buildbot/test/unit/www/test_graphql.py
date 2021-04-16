@@ -28,6 +28,7 @@ from buildbot.www import graphql
 
 
 class V3RootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
+    maxDiff=None
     def setUp(self):
         self.setUpTestReactor(use_asyncio=True)
         self.master = self.make_master(url="http://server/path/")
@@ -91,9 +92,9 @@ class V3RootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
     def test_get_query_item(self):
         yield self.render_resource(
             self.rsrc,
-            b"/?query={tests(id:13){id, info}}",
+            b"/?query={test(id:13){id, info}}",
         )
-        self.assertResult({"tests": [{"id": 13, "info": "ok"}]})
+        self.assertResult({"test": {"id": 13, "info": "ok"}})
 
     @defer.inlineCallbacks
     def test_get_noquery(self):
