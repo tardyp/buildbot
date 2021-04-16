@@ -102,6 +102,7 @@ class Test(base.ResourceType):
     name = "test"
     plural = "tests"
     endpoints = [TestsEndpoint, TestEndpoint, FailEndpoint, RawTestsEndpoint]
+    keyFields = ["id"]
 
     class EntityType(types.Entity):
         id = types.Integer()
@@ -160,7 +161,11 @@ type Query {
    tags__gt: [String],
    tags__le: [String],
    tags__lt: [String],
-   tags__ne: [String]): [Test]!
+   tags__ne: [String],
+   order: String,
+   limit: Int,
+   offset: Int): [Test]!
+  test(id: Int): Test
 }
 type Test {
   id: Int!
