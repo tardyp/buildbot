@@ -34,7 +34,10 @@ testData = {
 
 class TestsEndpoint(base.Endpoint):
     isCollection = True
-    pathPatterns = "/tests"
+    pathPatterns = """
+    /tests
+    /test
+    """
     rootLinkName = 'tests'
 
     def get(self, resultSpec, kwargs):
@@ -66,7 +69,10 @@ class FailEndpoint(base.Endpoint):
 
 class TestEndpoint(base.Endpoint):
     isCollection = False
-    pathPatterns = "/tests/n:testid"
+    pathPatterns = """
+    /tests/n:testid
+    /test/n:testid
+    """
 
     def get(self, resultSpec, kwargs):
         if kwargs['testid'] == 0:

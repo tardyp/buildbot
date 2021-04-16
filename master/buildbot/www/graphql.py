@@ -86,10 +86,13 @@ class V3RootResource(resource.Resource):
         @defer.inlineCallbacks
         def field_resolver(parent, resolve_info, **args):
             if parent is None:
-                if 'id' in args:
-                    data = yield self.master.data.get((resolve_info.field_name + 's', args['id']))
+                field = resolve_info.field_name
+                if hasattr(self.master.data.plural_rtypes, field):
+                    data = yield self.master.data.get((field, ))
+                elif hasattr(self.master.data.rtypes, field):
+                    data = yield self.master.data.get((field, args['id']))
                 else:
-                    data = yield self.master.data.get((resolve_info.field_name, ))
+                    raise TypeError(f"unknown type {field}")
                 return data
             return self.default_field_resolver(parent, resolve_info, **args)
 

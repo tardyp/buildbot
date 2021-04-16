@@ -30,7 +30,7 @@ from buildbot.www import authz
 from buildbot.www import graphql
 from buildbot.www import rest
 from buildbot.www.rest import JSONRPC_CODES
-from buildbot.www.rest import BadRequest
+from buildbot.data.exceptions import InvalidQueryParameter
 
 
 class RestRootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
@@ -549,7 +549,7 @@ class V2RootResource_REST(TestReactorMixin, www.WwwTestMixin,
         yield self.render_resource(self.rsrc, b'/tests/0')
         self.assertRequest(
             contentJson={'error': "not found while getting from endpoint for "
-                                  "/tests/n:testid with arguments"
+                                  "/tests/n:testid,/test/n:testid with arguments"
                                   " ResultSpec(**{'filters': [], 'fields': None, "
                                   "'properties': [], "
                                   "'order': None, 'limit': None, 'offset': None}) "
@@ -590,7 +590,7 @@ class V2RootResource_REST(TestReactorMixin, www.WwwTestMixin,
         expected_props = [None, 'test2']
         self.make_request(b'/tests')
         self.request.args = {b'property': expected_props}
-        with self.assertRaises(BadRequest):
+        with self.assertRaises(InvalidQueryParameter):
             self.rsrc.decodeResultSpec(self.request, endpoint.TestsEndpoint)
 
     def test_decode_result_spec_limit(self):
@@ -622,31 +622,31 @@ class V2RootResource_REST(TestReactorMixin, www.WwwTestMixin,
         self.assertEqual(spec.properties[0].values, expected_props)
 
     def test_decode_result_spec_not_a_collection_limit(self):
-        def expectRaiseBadRequest():
+        def expectRaiseInvalidQueryParameter():
             limit = 5
             self.make_request(b'/tests')
             self.request.args = {b'limit': limit}
             self.rsrc.decodeResultSpec(self.request, endpoint.TestEndpoint)
-        with self.assertRaises(rest.BadRequest):
-            expectRaiseBadRequest()
+        with self.assertRaises(InvalidQueryParameter):
+            expectRaiseInvalidQueryParameter()
 
     def test_decode_result_spec_not_a_collection_order(self):
-        def expectRaiseBadRequest():
+        def expectRaiseInvalidQueryParameter():
             order = ('info',)
             self.make_request(b'/tests')
             self.request.args = {b'order': order}
             self.rsrc.decodeResultSpec(self.request, endpoint.TestEndpoint)
-        with self.assertRaises(rest.BadRequest):
-            expectRaiseBadRequest()
+        with self.assertRaises(InvalidQueryParameter):
+            expectRaiseInvalidQueryParameter()
 
     def test_decode_result_spec_not_a_collection_offset(self):
-        def expectRaiseBadRequest():
+        def expectRaiseInvalidQueryParameter():
             offset = 0
             self.make_request(b'/tests')
             self.request.args = {b'offset': offset}
             self.rsrc.decodeResultSpec(self.request, endpoint.TestEndpoint)
-        with self.assertRaises(rest.BadRequest):
-            expectRaiseBadRequest()
+        with self.assertRaises(InvalidQueryParameter):
+            expectRaiseInvalidQueryParameter()
 
     def test_decode_result_spec_not_a_collection_properties(self):
         expected_props = ['test1', 'test2']

@@ -34,3 +34,6 @@ class InvalidPathError(DataException):
 
 class InvalidControlException(DataException):
     "Action is not supported"
+
+class InvalidQueryParameter(DataException):
+    "Query Parameter was invalid"

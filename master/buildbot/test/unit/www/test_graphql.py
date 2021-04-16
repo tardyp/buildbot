@@ -97,6 +97,17 @@ class V3RootResource(TestReactorMixin, www.WwwTestMixin, unittest.TestCase):
         self.assertResult({"test": {"id": 13, "info": "ok"}})
 
     @defer.inlineCallbacks
+    def test_get_query_items_result_spec(self):
+        yield self.render_resource(
+            self.rsrc,
+            b"/?query={tests(id__gt:19){id, info}}",
+        )
+        self.assertResult({"tests": [
+            {"id": 19, "info": "ok"},
+            {"id": 20, "info": "ok"}]
+            })
+
+    @defer.inlineCallbacks
     def test_get_noquery(self):
         yield self.render_resource(
             self.rsrc,
